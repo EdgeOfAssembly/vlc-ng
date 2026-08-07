@@ -1,0 +1,22 @@
+--- /tmp/vlc-3.0.23.org/modules/codec/avcodec/video.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/codec/avcodec/video.c	2026-07-03 02:45:32.784882049 +0300
+@@ -1764,6 +1764,19 @@
+             swfmt = pi_fmt[i];
+     }
+ 
++    /* If the software format is 4:4:4, disable hardware acceleration
++     * since VDPAU/VAAPI typically don't support it for H.264 output */
++    if (swfmt != AV_PIX_FMT_NONE)
++    {
++        const AVPixFmtDescriptor *sw_desc = av_pix_fmt_desc_get(swfmt);
++        if (sw_desc != NULL && sw_desc->nb_components >= 3 &&
++            sw_desc->log2_chroma_w == 0 && sw_desc->log2_chroma_h == 0)
++        {
++            msg_Dbg(p_dec, "4:4:4 chroma not supported by VDPAU/VAAPI, using software decode");
++            can_hwaccel = false;
++        }
++    }
++
+     /* Use the default fmt in priority of any sw fmt if the default fmt is a hw
+      * one */
+     if (defaultfmt != AV_PIX_FMT_NONE)

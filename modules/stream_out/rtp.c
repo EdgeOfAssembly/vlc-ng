@@ -1565,7 +1565,7 @@ static int64_t rtp_init_ts( const vod_media_t *p_media,
 
     uint64_t i_ts_init;
     /* As per RFC 2326, session identifiers are at least 8 bytes long */
-    strncpy((char *)&i_ts_init, psz_vod_session, sizeof(uint64_t));
+    memcpy(&i_ts_init, psz_vod_session, sizeof(uint64_t));
     i_ts_init ^= (uintptr_t)p_media;
     /* Limit the timestamp to 48 bits, this is enough and allows us
      * to stay away from overflows */

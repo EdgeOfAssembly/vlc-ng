@@ -48,6 +48,10 @@ static inline int bits_initwrite( bits_buffer_t *p_buffer,
     return 0;
 }
 
+#if defined(__GNUC__) && !defined(__clang__)
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
 static inline void bits_align( bits_buffer_t *p_buffer )
 {
     if( p_buffer->i_mask != 0x80 && p_buffer->i_data < p_buffer->i_size )
@@ -57,7 +61,14 @@ static inline void bits_align( bits_buffer_t *p_buffer )
         p_buffer->p_data[p_buffer->i_data] = 0x00;
     }
 }
+#if defined(__GNUC__) && !defined(__clang__)
+# pragma GCC diagnostic pop
+#endif
 
+#if defined(__GNUC__) && !defined(__clang__)
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
 static inline void bits_write( bits_buffer_t *p_buffer,
                                int i_count, uint64_t i_bits )
 {
@@ -81,5 +92,8 @@ static inline void bits_write( bits_buffer_t *p_buffer,
         }
     }
 }
+#if defined(__GNUC__) && !defined(__clang__)
+# pragma GCC diagnostic pop
+#endif
 
 

@@ -1573,7 +1573,7 @@ static int Demux_UnSeekable( demux_t *p_demux )
     {
 #define p_stream    p_sys->track[avi_pk.i_stream]
 
-        avi_packet_t    avi_pk;
+    avi_packet_t    avi_pk;
 
         if( AVI_PacketGetHeader( p_demux, &avi_pk ) )
         {
@@ -2468,7 +2468,7 @@ static int AVI_PacketNext( demux_t *p_demux )
 static int AVI_PacketSearch( demux_t *p_demux )
 {
     demux_sys_t     *p_sys = p_demux->p_sys;
-    avi_packet_t    avi_pk;
+    avi_packet_t    avi_pk = {0};
     int             i_count = 0;
 
     for( ;; )

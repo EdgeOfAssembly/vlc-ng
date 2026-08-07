@@ -150,7 +150,7 @@ static int Mux( sout_mux_t *p_mux )
 
     p_fifo = p_mux->pp_inputs[0]->p_fifo;
 
-    while( block_FifoCount( p_fifo ) > 0 )
+    while( vlc_fifo_GetCount( p_fifo ) > 0 )
     {
         static const char psz_hfmt[] = "\r\n"
             "--"BOUNDARY"\r\n"

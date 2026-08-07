@@ -1,0 +1,31 @@
+--- a/modules/access/satip.c
++++ b/modules/access/satip.c
+@@ -124,7 +124,9 @@
+     tok = strtok_r(request_line, ";", &state);
+     if (tok == NULL)
+         return;
+-    strncpy(session, tok, __MIN(strlen(tok), max - 1));
++    size_t len = __MIN(strlen(tok), max - 1);
++    memcpy(session, tok, len);
++    session[len] = '\0';
+ 
+     while ((tok = strtok_r(NULL, ";", &state)) != NULL) {
+         if (strncmp(tok, "timeout=", 8) == 0) {
+@@ -164,13 +166,15 @@
+ 
+     while ((tok = strtok_r(NULL, ";", &state)) != NULL) {
+         if (strncmp(tok, "destination=", 12) == 0) {
+-            strncpy(sys->udp_address, tok + 12, __MIN(strlen(tok + 12), UDP_ADDRESS_LEN - 1));
++            size_t addr_len = __MIN(strlen(tok + 12), UDP_ADDRESS_LEN - 1);
++            memcpy(sys->udp_address, tok + 12, addr_len);
++            sys->udp_address[addr_len] = '\0';
+         } else if (strncmp(tok, "port=", 5) == 0) {
+             char port[6];
+             char *end;
+ 
+             memset(port, 0x00, 6);
+-            strncpy(port, tok + 5, __MIN(strlen(tok + 5), 5));
++            memcpy(port, tok + 5, __MIN(strlen(tok + 5), 5));
+             if ((end = strstr(port, "-")) != NULL)
+                 *end = '\0';
+             err = parse_port(port, &sys->udp_port);

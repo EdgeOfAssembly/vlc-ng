@@ -437,9 +437,9 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
             {
                 int64_t i_time = va_arg(args, int64_t);
                 uint64_t i_pos = SeekByMlltTable( p_demux, &i_time );
-                int i_ret = vlc_stream_Seek( p_demux->s, p_sys->i_stream_offset + i_pos );
-                if( i_ret != VLC_SUCCESS )
-                    return i_ret;
+                int i_ret2 = vlc_stream_Seek( p_demux->s, p_sys->i_stream_offset + i_pos );
+                if( i_ret2 != VLC_SUCCESS )
+                    return i_ret2;
                 p_sys->i_time_offset = i_time - p_sys->i_pts;
                 /* And reset buffered data */
                 if( p_sys->p_packetized_data )
@@ -449,6 +449,7 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
             }
             /* FIXME TODO: implement a high precision seek (with mp3 parsing)
              * needed for multi-input */
+            /* fall through */
         }
         default:
             i_ret = demux_vaControlHelper( p_demux->s, p_sys->i_stream_offset, -1,
@@ -598,7 +599,7 @@ static int WavSkipHeader( demux_t *p_demux, int *pi_skip, const int pi_format[],
 
     /* Sanity check the wave format header */
     uint32_t i_len = GetDWLE( p_peek + i_peek - 4 );
-    if( i_len > WAV_PROBE_SIZE )
+    if( i_len > WAV_PROBE_SIZE || i_peek + i_len > WAV_PROBE_SIZE )
         return VLC_EGENERIC;
 
     i_peek += i_len + 8;

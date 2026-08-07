@@ -1,0 +1,11 @@
+--- a/modules/spu/remoteosd.c
++++ b/modules/spu/remoteosd.c
+@@ -360,7 +360,7 @@
+ 
+     msg_Dbg( p_filter, "Server version is %s", pv );
+ 
+-    strncpy(pv, "RFB 003.003\n", sz_rfbProtocolVersionMsg);
++    memcpy(pv, "RFB 003.003\n", sz_rfbProtocolVersionMsg);
+ 
+     if( !write_exact(p_filter, fd, pv, sz_rfbProtocolVersionMsg) )
+     {

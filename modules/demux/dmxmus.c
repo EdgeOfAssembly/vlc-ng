@@ -252,7 +252,7 @@ static int Demux(demux_t *demux)
 
     /* Read one MIDI event */
     block_t *ev = NULL;
-    unsigned char buf[3];
+    unsigned char buf[3] = {0, 0, 0};
     unsigned delay;
 
     if (ReadEvent(demux, buf, &delay))

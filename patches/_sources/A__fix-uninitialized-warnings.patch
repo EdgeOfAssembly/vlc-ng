@@ -1,0 +1,175 @@
+--- /tmp/vlc-3.0.23.org/src/misc/picture_pool.c	2025-12-23 12:49:21.000000000 +0200
++++ /tmp/vlc-3.0.23/src/misc/picture_pool.c	2026-07-03 04:44:42.669136563 +0300
+@@ -160,6 +160,7 @@
+     picture_t *picture[count ? count : 1];
+     unsigned i;
+ 
++    memset(picture, 0, sizeof(picture));
+     for (i = 0; i < count; i++) {
+         picture[i] = picture_NewFromFormat(fmt);
+         if (picture[i] == NULL)
+@@ -183,6 +184,7 @@
+     picture_t *picture[count ? count : 1];
+     unsigned i;
+ 
++    memset(picture, 0, sizeof(picture));
+     for (i = 0; i < count; i++) {
+         picture[i] = picture_pool_Get(master);
+         if (picture[i] == NULL)
+--- /tmp/vlc-3.0.23.org/modules/access/dtv/linux.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/access/dtv/linux.c	2026-07-03 04:44:42.735545647 +0300
+@@ -477,6 +477,8 @@
+  */
+ unsigned dvb_enum_systems (dvb_device_t *d)
+ {
++    unsigned systems = 0;
++
+     if (dvb_open_frontend (d))
+         return 0;
+ #if DVBv5(5)
+@@ -517,8 +519,6 @@
+         //[SYS_TURBO]
+         [SYS_DVBC_ANNEX_C] = DTV_DELIVERY_ISDB_C, // another name for ISDB-C?
+     };
+-    unsigned systems = 0;
+-
+     msg_Dbg (d->obj, "probing frontend (kernel API v%u.%u, user API v%u.%u)",
+              prop[0].u.data >> 8, prop[0].u.data & 0xFF,
+              DVB_API_VERSION, DVB_API_VERSION_MINOR);
+@@ -547,7 +547,6 @@
+         .num = 1,
+         .props = prop
+     };
+-    unsigned systems = 0;
+ #endif
+     if (ioctl (d->frontend, FE_GET_PROPERTY, &props) < 0)
+     {
+--- /tmp/vlc-3.0.23.org/modules/demux/pva.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/demux/pva.c	2026-07-03 04:44:42.416136554 +0300
+@@ -391,7 +391,7 @@
+ {
+     demux_sys_t *p_sys = p_demux->p_sys;
+     block_t     *p_pes = p_sys->p_pes;
+-    uint8_t     hdr[20];
++    uint8_t     hdr[20] = {0};
+ 
+     unsigned    i_skip;
+     ts_90khz_t  i_dts;
+--- /tmp/vlc-3.0.23.org/modules/demux/dmxmus.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/demux/dmxmus.c	2026-07-03 04:44:42.416136554 +0300
+@@ -252,7 +252,7 @@
+ 
+     /* Read one MIDI event */
+     block_t *ev = NULL;
+-    unsigned char buf[3];
++    unsigned char buf[3] = {0, 0, 0};
+     unsigned delay;
+ 
+     if (ReadEvent(demux, buf, &delay))
+--- /tmp/vlc-3.0.23.org/modules/demux/avi/avi.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/demux/avi/avi.c	2026-07-03 04:45:05.817137387 +0300
+@@ -1573,7 +1573,7 @@
+     {
+ #define p_stream    p_sys->track[avi_pk.i_stream]
+ 
+-        avi_packet_t    avi_pk;
++    avi_packet_t    avi_pk;
+ 
+         if( AVI_PacketGetHeader( p_demux, &avi_pk ) )
+         {
+@@ -2468,7 +2468,7 @@
+ static int AVI_PacketSearch( demux_t *p_demux )
+ {
+     demux_sys_t     *p_sys = p_demux->p_sys;
+-    avi_packet_t    avi_pk;
++    avi_packet_t    avi_pk = {0};
+     int             i_count = 0;
+ 
+     for( ;; )
+--- /tmp/vlc-3.0.23.org/modules/demux/mpeg/mpeg4_iod.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/demux/mpeg/mpeg4_iod.c	2026-07-03 04:44:42.399136554 +0300
+@@ -487,7 +487,7 @@
+         return NULL;
+     }
+ 
+-    od_descriptor_t * ods[1];
++    od_descriptor_t * ods[1] = { NULL };
+     uint8_t i_count = ODInit( p_object, i_data, p_data, ODTag_InitialObjectDescr, 1, 1, ods );
+     if( !i_count )
+     {
+--- /tmp/vlc-3.0.23.org/modules/mux/mp4/libmp4mux.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/mux/mp4/libmp4mux.c	2026-07-03 04:44:42.413136554 +0300
+@@ -525,7 +525,7 @@
+ 
+     lfeon = bs_read1(&s);
+ 
+-    uint8_t mp4_a52_header[3];
++    uint8_t mp4_a52_header[3] = {0};
+     bs_init(&s, mp4_a52_header, sizeof(mp4_a52_header));
+ 
+     bs_write(&s, 2, fscod);
+--- /tmp/vlc-3.0.23.org/modules/gui/qt/qt.cpp	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/gui/qt/qt.cpp	2026-07-03 04:44:42.405136554 +0300
+@@ -824,7 +824,7 @@
+     msg_Dbg( p_wnd, "requesting video window..." );
+ 
+ #ifdef QT5_HAS_X11
+-    Window xid;
++    Window xid = 0;
+ 
+     if (QX11Info::isPlatformX11())
+     {
+--- /tmp/vlc-3.0.23.org/modules/stream_out/rtpfmt.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/stream_out/rtpfmt.c	2026-07-03 04:44:42.446136555 +0300
+@@ -1870,7 +1870,7 @@
+     const uint8_t *qtables = NULL;
+     int nb_qtables = 0;
+     int off = 0; // fragment offset in frame
+-    int y_sampling_factor;
++    int y_sampling_factor = 0;
+     // type is set by pixel format (determined by y_sampling_factor):
+     // 0 for yuvj422p
+     // 1 for yuvj420p
+--- /tmp/vlc-3.0.23.org/modules/video_output/opengl/converter_vdpau.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/video_output/opengl/converter_vdpau.c	2026-07-03 04:44:42.438136555 +0300
+@@ -79,6 +79,7 @@
+     struct priv *priv = tc->priv;
+     picture_t *pics[requested_count];
+ 
++    memset(pics, 0, sizeof(pics));
+     unsigned int i;
+     for (i = 0; i < requested_count; ++i)
+     {
+--- /tmp/vlc-3.0.23.org/lib/media_list_player.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/lib/media_list_player.c	2026-07-03 04:44:42.436136555 +0300
+@@ -790,7 +790,7 @@
+ 
+     libvlc_media_list_path_t path = p_mlp->current_playing_item_path;
+ 
+-    int ret;
++    int ret = 0;
+     if(p_mlp->e_playback_mode != libvlc_playback_mode_repeat)
+     {
+         bool b_loop = (p_mlp->e_playback_mode == libvlc_playback_mode_loop);
+--- /tmp/vlc-3.0.23.org/modules/packetizer/av1_obu.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/packetizer/av1_obu.c	2026-07-03 04:44:42.438136555 +0300
+@@ -629,7 +629,7 @@
+     if(!p_buffer)
+         return 0;
+ 
+-    bs_t bs;
++    bs_t bs = {0};
+     bs_write_init(&bs, p_buffer, i_buffer);
+     bs_write(&bs, 1, 1); /* unsigned int (1) marker = 1; */
+     bs_write(&bs, 7, 1); /* unsigned int (7) version = 1; */
+--- /tmp/vlc-3.0.23.org/modules/control/hotkeys.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/control/hotkeys.c	2026-07-03 04:44:42.434136555 +0300
+@@ -912,7 +912,7 @@
+             if( p_input == NULL || !var_GetBool( p_input, "can-seek" ) )
+                 break;
+ 
+-            const char *varname;
++            const char *varname = NULL;
+             int sign = +1;
+             switch( i_action )
+             {

@@ -1082,7 +1082,7 @@ static int DrawStatus(intf_thread_t *intf, input_thread_t *p_input)
         case PAUSE_S:
             mvnprintw(y++, 0, COLS, _(input_state[val.i_int]),
                         repeat, random, loop);
-
+            /* fall through */
         default:
             val.i_int = var_GetInteger(p_input, "time");
             secstotimestr(buf1, val.i_int / CLOCK_FREQ);
@@ -1561,7 +1561,7 @@ static void HandleCommonKey(intf_thread_t *intf, input_thread_t *input,
     case 0x1b:  /* ESC */
         if (getch() != ERR)
             return;
-
+        /* fall through */
     case 'q':
     case 'Q':
     case KEY_EXIT:

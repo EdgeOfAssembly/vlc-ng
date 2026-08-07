@@ -898,14 +898,14 @@ static text_segment_t* ParseSubtitles( int *pi_align, const char *psz_subtitle )
             }
             else if( !strncmp( psz_subtitle, "</", 2 ))
             {
-                char* psz_tagname = GetTag( &psz_subtitle, true );
-                if ( psz_tagname != NULL )
+                char* psz_tagname2 = GetTag( &psz_subtitle, true );
+                if ( psz_tagname2 != NULL )
                 {
-                    if ( !strcasecmp( psz_tagname, "b" ) ||
-                         !strcasecmp( psz_tagname, "i" ) ||
-                         !strcasecmp( psz_tagname, "u" ) ||
-                         !strcasecmp( psz_tagname, "s" ) ||
-                         !strcasecmp( psz_tagname, "font" ) )
+                    if ( !strcasecmp( psz_tagname2, "b" ) ||
+                         !strcasecmp( psz_tagname2, "i" ) ||
+                         !strcasecmp( psz_tagname2, "u" ) ||
+                         !strcasecmp( psz_tagname2, "s" ) ||
+                         !strcasecmp( psz_tagname2, "font" ) )
                     {
                         // A closing tag for one of the tags we handle, meaning
                         // we pushed a style onto the stack earlier
@@ -914,10 +914,10 @@ static text_segment_t* ParseSubtitles( int *pi_align, const char *psz_subtitle )
                     else
                     {
                         // Unknown closing tag. If it is closing an unknown tag, ignore it. Otherwise, display it
-                        if ( !HasTag( &p_tag_stack, psz_tagname ) )
+                        if ( !HasTag( &p_tag_stack, psz_tagname2 ) )
                         {
                             AppendString( p_segment, "</" );
-                            AppendString( p_segment, psz_tagname );
+                            AppendString( p_segment, psz_tagname2 );
                             AppendCharacter( p_segment, '>' );
                         }
                     }
@@ -925,7 +925,7 @@ static text_segment_t* ParseSubtitles( int *pi_align, const char *psz_subtitle )
                         psz_subtitle++;
                     if ( *psz_subtitle == '>' )
                         psz_subtitle++;
-                    free( psz_tagname );
+                    free( psz_tagname2 );
                 }
                 else
                 {

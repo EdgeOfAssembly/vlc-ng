@@ -129,7 +129,7 @@ static void DarkenField( picture_t *p_dst,
              i_plane < p_dst->i_planes;
              i_plane++ )
         {
-            int w = p_dst->p[i_plane].i_visible_pitch;
+            int w2 = p_dst->p[i_plane].i_visible_pitch;
             p_out = p_dst->p[i_plane].p_pixels;
             p_out_end = p_out + p_dst->p[i_plane].i_pitch
                               * p_dst->p[i_plane].i_visible_lines;
@@ -142,7 +142,7 @@ static void DarkenField( picture_t *p_dst,
             {
                 /* Handle the width remainder */
                 uint8_t *po = p_out;
-                for( int x = 0; x < w; ++x, ++po )
+                for( int x = 0; x < w2; ++x, ++po )
                     (*po) = 128 + ( ((*po) - 128) / (1 << i_strength) );
             } /* for p_out... */
         } /* for i_plane... */
@@ -212,9 +212,9 @@ static void DarkenFieldMMX( picture_t *p_dst,
              i_plane < p_dst->i_planes;
              i_plane++ )
         {
-            int w = p_dst->p[i_plane].i_visible_pitch;
-            int wm8 = w % 8;   /* remainder */
-            int w8  = w - wm8; /* part of width that is divisible by 8 */
+            int w2 = p_dst->p[i_plane].i_visible_pitch;
+            int wm8_2 = w2 % 8;   /* remainder */
+            int w8_2  = w2 - wm8_2; /* part of width that is divisible by 8 */
 
             p_out = p_dst->p[i_plane].p_pixels;
             p_out_end = p_out + p_dst->p[i_plane].i_pitch
@@ -238,7 +238,7 @@ static void DarkenFieldMMX( picture_t *p_dst,
                 movq_m2r( remove_high_u64, mm7 );
 
                 uint64_t *po8 = (uint64_t *)p_out;
-                for( ; x < w8; x += 8 )
+                for( ; x < w8_2; x += 8 )
                 {
                     movq_m2r( (*po8), mm0 );
 
@@ -262,7 +262,7 @@ static void DarkenFieldMMX( picture_t *p_dst,
 
                 /* C version - handle the width remainder */
                 uint8_t *po = p_out;
-                for( ; x < w; ++x, ++po )
+                for( ; x < w2; ++x, ++po )
                     (*po) = 128 + ( ((*po) - 128) / (1 << i_strength) );
             } /* for p_out... */
         } /* for i_plane... */

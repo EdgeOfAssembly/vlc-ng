@@ -1,0 +1,27 @@
+--- a/modules/codec/avcodec/video.c
++++ b/modules/codec/avcodec/video.c
+@@ -39,6 +39,7 @@
+ #include <libavcodec/avcodec.h>
+ #include <libavutil/mem.h>
+ #include <libavutil/pixdesc.h>
++#include <libavutil/log.h>
+ #include "avcommon_compat.h"
+ #if LIBAVUTIL_VERSION_CHECK( 55, 16, 101 )
+ #include <libavutil/mastering_display_metadata.h>
+@@ -1491,7 +1492,16 @@
+ 
+     /* do not flush buffers if codec hasn't been opened (theora/vorbis/VC1) */
+     if( avcodec_is_open( ctx ) )
++    {
++        /* Temporarily raise the log level to suppress harmless "get_buffer()
++         * failed" / "no frame!" messages from the decoder on shutdown.
++         * These are common (and expected) when there are delayed frames
++         * and the video output is being closed at the same time. */
++        int saved_level = av_log_get_level();
++        av_log_set_level( AV_LOG_FATAL );
+         avcodec_flush_buffers( ctx );
++        av_log_set_level( saved_level );
++    }
+ 
+     wait_mt( p_sys );
+ 

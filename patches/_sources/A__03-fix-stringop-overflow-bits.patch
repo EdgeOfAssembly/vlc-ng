@@ -1,0 +1,37 @@
+--- /tmp/vlc-3.0.23.org/modules/mux/mpeg/bits.h	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/mux/mpeg/bits.h	2026-07-03 04:23:07.418090456 +0300
+@@ -48,6 +48,10 @@
+     return 0;
+ }
+ 
++#if defined(__GNUC__) && !defined(__clang__)
++# pragma GCC diagnostic push
++# pragma GCC diagnostic ignored "-Wstringop-overflow"
++#endif
+ static inline void bits_align( bits_buffer_t *p_buffer )
+ {
+     if( p_buffer->i_mask != 0x80 && p_buffer->i_data < p_buffer->i_size )
+@@ -57,7 +61,14 @@
+         p_buffer->p_data[p_buffer->i_data] = 0x00;
+     }
+ }
++#if defined(__GNUC__) && !defined(__clang__)
++# pragma GCC diagnostic pop
++#endif
+ 
++#if defined(__GNUC__) && !defined(__clang__)
++# pragma GCC diagnostic push
++# pragma GCC diagnostic ignored "-Wstringop-overflow"
++#endif
+ static inline void bits_write( bits_buffer_t *p_buffer,
+                                int i_count, uint64_t i_bits )
+ {
+@@ -81,5 +92,8 @@
+         }
+     }
+ }
++#if defined(__GNUC__) && !defined(__clang__)
++# pragma GCC diagnostic pop
++#endif
+ 
+ 

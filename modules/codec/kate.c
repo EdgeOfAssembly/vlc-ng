@@ -53,10 +53,10 @@
 #define CHECK_TIGER_RET( statement )                                   \
     do                                                                 \
     {                                                                  \
-        int i_ret = (statement);                                       \
-        if( i_ret < 0 )                                                \
+        int i_tiger_ret = (statement);                                 \
+        if( i_tiger_ret < 0 )                                          \
         {                                                              \
-            msg_Dbg( p_dec, "Error in " #statement ": %d", i_ret );    \
+            msg_Dbg( p_dec, "Error in " #statement ": %d", i_tiger_ret ); \
         }                                                              \
     } while( 0 )
 

@@ -355,8 +355,8 @@ static void ParseUrls( services_discovery_t *p_sd, char *psz_urls )
         }
     }
     free( p_sys->pp_items );
-    for( int i = 0; i < p_sys->i_urls; i++ )
-        free( p_sys->ppsz_urls[i] );
+    for( int k = 0; k < p_sys->i_urls; k++ )
+        free( p_sys->ppsz_urls[k] );
     free( p_sys->ppsz_urls );
 
     p_sys->ppsz_urls = ppsz_new_urls;

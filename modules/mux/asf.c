@@ -997,21 +997,21 @@ static block_t *asf_header_create( sout_mux_t *p_mux, bool b_broadcast )
     {
         unsigned int i_dst_num, i_dst_den;
 
-        asf_track_t *tk = NULL;
+        asf_track_t *tk2 = NULL;
         for( size_t i = 0; i < vlc_array_count( &p_sys->tracks ); i++ )
         {
-            tk = vlc_array_item_at_index( &p_sys->tracks, i );
-            if( tk->i_cat == VIDEO_ES &&
-                tk->fmt.video.i_sar_num != 0 &&
-                tk->fmt.video.i_sar_den != 0 )
+            tk2 = vlc_array_item_at_index( &p_sys->tracks, i );
+            if( tk2->i_cat == VIDEO_ES &&
+                tk2->fmt.video.i_sar_num != 0 &&
+                tk2->fmt.video.i_sar_den != 0 )
             {
                 vlc_ureduce( &i_dst_num, &i_dst_den,
-                             tk->fmt.video.i_sar_num,
-                             tk->fmt.video.i_sar_den, 0 );
+                             tk2->fmt.video.i_sar_num,
+                             tk2->fmt.video.i_sar_den, 0 );
                 break;
             }
         }
-        assert( tk != NULL );
+        assert( tk2 != NULL );
 
         msg_Dbg( p_mux, "pixel aspect-ratio: %i/%i", i_dst_num, i_dst_den );
 

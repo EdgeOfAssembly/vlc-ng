@@ -647,7 +647,7 @@ static int Mux(sout_mux_t *p_mux)
 
         if (p_stream->mux.fmt.i_cat != SPU_ES) {
             /* Fix length of the sample */
-            if (block_FifoCount(p_input->p_fifo) > 0) {
+            if (vlc_fifo_GetCount(p_input->p_fifo) > 0) {
                 block_t *p_next = block_FifoShow(p_input->p_fifo);
                 if ( p_next->i_flags & BLOCK_FLAG_DISCONTINUITY )
                 { /* we have no way to know real length except by decoding */

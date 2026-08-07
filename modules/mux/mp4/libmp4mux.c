@@ -525,7 +525,7 @@ static bo_t *GetDac3Tag(block_t *a52_frame)
 
     lfeon = bs_read1(&s);
 
-    uint8_t mp4_a52_header[3];
+    uint8_t mp4_a52_header[3] = {0};
     bs_init(&s, mp4_a52_header, sizeof(mp4_a52_header));
 
     bs_write(&s, 2, fscod);

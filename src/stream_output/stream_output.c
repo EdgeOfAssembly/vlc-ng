@@ -490,7 +490,7 @@ void sout_MuxDeleteStream( sout_mux_t *p_mux, sout_input_t *p_input )
     int i_index;
 
     if( p_mux->b_waiting_stream
-     && block_FifoCount( p_input->p_fifo ) > 0 )
+     && vlc_fifo_GetCount( p_input->p_fifo ) > 0 )
     {
         /* We stop waiting, and call the muxer for taking care of the data
          * before we remove this es */
@@ -571,7 +571,7 @@ int sout_MuxGetStream( sout_mux_t *p_mux, unsigned i_blocks, vlc_tick_t *pi_dts 
         sout_input_t *p_input = p_mux->pp_inputs[i];
         block_t *p_data;
 
-        if( block_FifoCount( p_input->p_fifo ) < i_blocks )
+        if( vlc_fifo_GetCount( p_input->p_fifo ) < i_blocks )
         {
             if( (!p_mux->b_add_stream_any_time) &&
                 (p_input->p_fmt->i_cat != SPU_ES ) )

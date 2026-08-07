@@ -1,0 +1,20 @@
+--- a/modules/mux/ogg.c
++++ b/modules/mux/ogg.c
+@@ -503,7 +503,7 @@
+             memset( p_stream->p_oggds_header->sub_type, 0, 4 );
+             char buf[5];
+             snprintf( buf, sizeof(buf), "%"PRIx16, i_tag );
+-            strncpy( p_stream->p_oggds_header->sub_type, buf, 4 );
++            memcpy( p_stream->p_oggds_header->sub_type, buf, 4 );
+ 
+             p_stream->p_oggds_header->i_time_unit = INT64_C(10000000);
+             p_stream->p_oggds_header->i_default_len = 1;
+@@ -567,7 +567,7 @@
+     {
+         if( !p_stream->b_new )
+         {
+-            while( block_FifoCount( p_input->p_fifo ) )
++            while( vlc_fifo_GetCount( p_input->p_fifo ) )
+                 MuxBlock( p_mux, p_input );
+         }
+ 

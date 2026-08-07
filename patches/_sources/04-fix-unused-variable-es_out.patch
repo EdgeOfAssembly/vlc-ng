@@ -1,0 +1,72 @@
+--- /tmp/vlc-3.0.23.org/src/input/es_out.h	2025-12-23 12:49:21.000000000 +0200
++++ /tmp/vlc-3.0.23/src/input/es_out.h	2026-07-03 04:36:02.996607022 +0300
+@@ -94,6 +94,7 @@
+ {
+     int i_ret = es_out_Control( p_out, ES_OUT_SET_MODE, i_mode );
+     assert( !i_ret );
++    (void)(!i_ret);
+ }
+ static inline vlc_tick_t es_out_GetWakeup( es_out_t *p_out )
+ {
+@@ -101,6 +102,7 @@
+     int i_ret = es_out_Control( p_out, ES_OUT_GET_WAKE_UP, &i_wu );
+ 
+     assert( !i_ret );
++    (void)(!i_ret);
+     return i_wu;
+ }
+ static inline bool es_out_GetBuffering( es_out_t *p_out )
+@@ -109,6 +111,7 @@
+     int i_ret = es_out_Control( p_out, ES_OUT_GET_BUFFERING, &b );
+ 
+     assert( !i_ret );
++    (void)(!i_ret);
+     return b;
+ }
+ static inline bool es_out_GetEmpty( es_out_t *p_out )
+@@ -117,12 +120,14 @@
+     int i_ret = es_out_Control( p_out, ES_OUT_GET_EMPTY, &b );
+ 
+     assert( !i_ret );
++    (void)(!i_ret);
+     return b;
+ }
+ static inline void es_out_SetDelay( es_out_t *p_out, int i_cat, vlc_tick_t i_delay )
+ {
+     int i_ret = es_out_Control( p_out, ES_OUT_SET_DELAY, i_cat, i_delay );
+     assert( !i_ret );
++    (void)(!i_ret);
+ }
+ static inline int es_out_SetRecordState( es_out_t *p_out, bool b_record )
+ {
+@@ -148,6 +153,7 @@
+ {
+     int i_ret = es_out_Control( p_out, ES_OUT_SET_TIMES, f_position, i_time, i_length );
+     assert( !i_ret );
++    (void)(!i_ret);
+ }
+ static inline void es_out_SetJitter( es_out_t *p_out,
+                                      vlc_tick_t i_pts_delay, vlc_tick_t i_pts_jitter, int i_cr_average )
+@@ -155,6 +161,7 @@
+     int i_ret = es_out_Control( p_out, ES_OUT_SET_JITTER,
+                                 i_pts_delay, i_pts_jitter, i_cr_average );
+     assert( !i_ret );
++    (void)(!i_ret);
+ }
+ static inline int es_out_GetEsObjects( es_out_t *p_out, int i_id,
+                                        vlc_object_t **pp_decoder, vout_thread_t **pp_vout, audio_output_t **pp_aout )
+@@ -166,12 +173,14 @@
+     int i_group;
+     int i_ret = es_out_Control( p_out, ES_OUT_GET_GROUP_FORCED, &i_group );
+     assert( !i_ret );
++    (void)(!i_ret);
+     return i_group;
+ }
+ static inline void es_out_Eos( es_out_t *p_out )
+ {
+     int i_ret = es_out_Control( p_out, ES_OUT_SET_EOS );
+     assert( !i_ret );
++    (void)(!i_ret);
+ }
+ 
+ es_out_t  *input_EsOutNew( input_thread_t *, int i_rate );

@@ -503,7 +503,7 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
             memset( p_stream->p_oggds_header->sub_type, 0, 4 );
             char buf[5];
             snprintf( buf, sizeof(buf), "%"PRIx16, i_tag );
-            strncpy( p_stream->p_oggds_header->sub_type, buf, 4 );
+            memcpy( p_stream->p_oggds_header->sub_type, buf, 4 );
 
             p_stream->p_oggds_header->i_time_unit = INT64_C(10000000);
             p_stream->p_oggds_header->i_default_len = 1;
@@ -567,7 +567,7 @@ static void DelStream( sout_mux_t *p_mux, sout_input_t *p_input )
     {
         if( !p_stream->b_new )
         {
-            while( block_FifoCount( p_input->p_fifo ) )
+            while( vlc_fifo_GetCount( p_input->p_fifo ) )
                 MuxBlock( p_mux, p_input );
         }
 
@@ -1122,8 +1122,8 @@ static bool OggCreateHeaders( sout_mux_t *p_mux )
         for( int i = 0; i < p_mux->i_nb_inputs; i++ )
         {
             sout_input_t *p_input = p_mux->pp_inputs[i];
-            ogg_stream_t *p_stream = (ogg_stream_t*)p_input->p_sys;
-            if ( p_stream->skeleton.b_fisbone_done ) continue;
+            ogg_stream_t *p_stream2 = (ogg_stream_t*)p_input->p_sys;
+            if ( p_stream2->skeleton.b_fisbone_done ) continue;
             OggGetSkeletonFisbone( &op.packet, &op.bytes, p_input, p_mux );
             if ( op.packet == NULL ) return false;
             op.b_o_s = 0;
@@ -1134,7 +1134,7 @@ static bool OggCreateHeaders( sout_mux_t *p_mux )
             ogg_packet_clear( &op );
             p_og = OggStreamFlush( p_mux, &p_sys->skeleton.os, 0 );
             block_ChainAppend( &p_hdr, p_og );
-            p_stream->skeleton.b_fisbone_done = true;
+            p_stream2->skeleton.b_fisbone_done = true;
         }
     }
 
@@ -1151,15 +1151,15 @@ static bool OggCreateHeaders( sout_mux_t *p_mux )
     for( int i = 0; i < p_mux->i_nb_inputs; i++ )
     {
         sout_input_t *p_input = p_mux->pp_inputs[i];
-        ogg_stream_t *p_stream = (ogg_stream_t*)p_input->p_sys;
+        ogg_stream_t *p_stream2 = (ogg_stream_t*)p_input->p_sys;
         /* flush stream && save offset */
-        if ( p_sys->skeleton.b_create && !p_stream->skeleton.b_index_done )
+        if ( p_sys->skeleton.b_create && !p_stream2->skeleton.b_index_done )
         {
-            if ( !p_stream->skeleton.p_index ) AllocateIndex( p_mux, p_input );
-            if ( p_stream->skeleton.p_index )
+            if ( !p_stream2->skeleton.p_index ) AllocateIndex( p_mux, p_input );
+            if ( p_stream2->skeleton.p_index )
             {
-                msg_Dbg( p_mux, "Creating index for stream %d", p_stream->i_serial_no );
-                OggGetSkeletonIndex( &op.packet, &op.bytes, p_stream );
+                msg_Dbg( p_mux, "Creating index for stream %d", p_stream2->i_serial_no );
+                OggGetSkeletonIndex( &op.packet, &op.bytes, p_stream2 );
                 if ( op.packet == NULL ) return false;
                 op.b_o_s = 0;
                 op.e_o_s = 0;
@@ -1167,16 +1167,16 @@ static bool OggCreateHeaders( sout_mux_t *p_mux )
                 op.packetno = p_sys->skeleton.i_packet_no++;
 
                 /* backup some values */
-                p_stream->skeleton.i_index_offset = p_mux->p_sys->i_pos;
-                p_stream->skeleton.i_index_packetno = p_sys->skeleton.os.packetno;
-                p_stream->skeleton.i_index_pageno = p_sys->skeleton.os.pageno;
+                p_stream2->skeleton.i_index_offset = p_mux->p_sys->i_pos;
+                p_stream2->skeleton.i_index_packetno = p_sys->skeleton.os.packetno;
+                p_stream2->skeleton.i_index_pageno = p_sys->skeleton.os.pageno;
 
                 ogg_stream_packetin( &p_sys->skeleton.os, &op );
                 ogg_packet_clear( &op );
                 p_og = OggStreamFlush( p_mux, &p_sys->skeleton.os, 0 );
                 p_mux->p_sys->i_pos += sout_AccessOutWrite( p_mux->p_access, p_og );
             }
-            p_stream->skeleton.b_index_done = true;
+            p_stream2->skeleton.b_index_done = true;
         }
     }
 
@@ -1184,13 +1184,13 @@ static bool OggCreateHeaders( sout_mux_t *p_mux )
     for( int i = 0; i < p_mux->i_nb_inputs; i++ )
     {
         sout_input_t *p_input = p_mux->pp_inputs[i];
-        ogg_stream_t *p_stream = (ogg_stream_t*)p_input->p_sys;
+        ogg_stream_t *p_stream2 = (ogg_stream_t*)p_input->p_sys;
 
-        if( p_stream->fmt.i_codec == VLC_CODEC_VORBIS ||
-            p_stream->fmt.i_codec == VLC_CODEC_SPEEX ||
-            p_stream->fmt.i_codec == VLC_CODEC_OPUS ||
-            p_stream->fmt.i_codec == VLC_CODEC_THEORA ||
-            p_stream->fmt.i_codec == VLC_CODEC_DAALA )
+        if( p_stream2->fmt.i_codec == VLC_CODEC_VORBIS ||
+            p_stream2->fmt.i_codec == VLC_CODEC_SPEEX ||
+            p_stream2->fmt.i_codec == VLC_CODEC_OPUS ||
+            p_stream2->fmt.i_codec == VLC_CODEC_THEORA ||
+            p_stream2->fmt.i_codec == VLC_CODEC_DAALA )
         {
             unsigned pi_size[XIPH_MAX_HEADER_COUNT];
             const void *pp_data[XIPH_MAX_HEADER_COUNT];

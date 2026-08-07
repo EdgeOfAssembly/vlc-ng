@@ -487,7 +487,7 @@ od_descriptor_t *IODNew( vlc_object_t *p_object, unsigned i_data, const uint8_t 
         return NULL;
     }
 
-    od_descriptor_t * ods[1];
+    od_descriptor_t * ods[1] = { NULL };
     uint8_t i_count = ODInit( p_object, i_data, p_data, ODTag_InitialObjectDescr, 1, 1, ods );
     if( !i_count )
     {

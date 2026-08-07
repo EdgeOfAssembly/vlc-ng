@@ -349,10 +349,10 @@ static void DecoderMetadataCallback( const FLAC__StreamDecoder *decoder,
                         {
                             if( (i_chan & i_wfxmask) == 0 )
                                 continue;
-                            for( size_t i=0; i<MAPPED_WFX_CHANNELS; i++ )
+                            for( size_t j=0; j<MAPPED_WFX_CHANNELS; j++ )
                             {
-                                if( wfx_remapping[i][0] == i_chan )
-                                    i_vlcmask |= wfx_remapping[i][1];
+                                if( wfx_remapping[j][0] == i_chan )
+                                    i_vlcmask |= wfx_remapping[j][1];
                             }
                         }
                         /* Check if we have the 1 to 1 mapping */
@@ -369,8 +369,8 @@ static void DecoderMetadataCallback( const FLAC__StreamDecoder *decoder,
 
                         /* /!\ Invert our source/dest reordering,
                          * as Interleave() here works source indexes */
-                        for( unsigned i=0; i<i_wfxchannels; i++ )
-                            p_sys->rgi_channels_reorder[neworder[i]] = i;
+                        for( unsigned k=0; k<i_wfxchannels; k++ )
+                            p_sys->rgi_channels_reorder[neworder[k]] = k;
 
                         p_dec->fmt_out.audio.i_physical_channels = i_vlcmask;
                         p_dec->fmt_out.audio.i_channels = i_wfxchannels;

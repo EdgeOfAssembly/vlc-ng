@@ -357,13 +357,13 @@ static block_t *NewUDPPacket( sout_access_out_t *p_access, vlc_tick_t i_dts)
     sout_access_out_sys_t *p_sys = p_access->p_sys;
     block_t *p_buffer;
 
-    while ( block_FifoCount( p_sys->p_empty_blocks ) > MAX_EMPTY_BLOCKS )
+    while ( vlc_fifo_GetCount( p_sys->p_empty_blocks ) > MAX_EMPTY_BLOCKS )
     {
         p_buffer = block_FifoGet( p_sys->p_empty_blocks );
         block_Release( p_buffer );
     }
 
-    if( block_FifoCount( p_sys->p_empty_blocks ) == 0 )
+    if( vlc_fifo_GetCount( p_sys->p_empty_blocks ) == 0 )
     {
         p_buffer = block_Alloc( p_sys->i_mtu );
     }

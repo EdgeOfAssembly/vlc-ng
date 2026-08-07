@@ -1,0 +1,89 @@
+--- a/modules/access/satip.c
++++ b/modules/access/satip.c
+@@ -124,7 +124,9 @@
+     tok = strtok_r(request_line, ";", &state);
+     if (tok == NULL)
+         return;
+-    strncpy(session, tok, __MIN(strlen(tok), max - 1));
++    size_t len = __MIN(strlen(tok), max - 1);
++    memcpy(session, tok, len);
++    session[len] = '\0';
+ 
+     while ((tok = strtok_r(NULL, ";", &state)) != NULL) {
+         if (strncmp(tok, "timeout=", 8) == 0) {
+@@ -164,13 +166,15 @@
+ 
+     while ((tok = strtok_r(NULL, ";", &state)) != NULL) {
+         if (strncmp(tok, "destination=", 12) == 0) {
+-            strncpy(sys->udp_address, tok + 12, __MIN(strlen(tok + 12), UDP_ADDRESS_LEN - 1));
++            size_t addr_len = __MIN(strlen(tok + 12), UDP_ADDRESS_LEN - 1);
++            memcpy(sys->udp_address, tok + 12, addr_len);
++            sys->udp_address[addr_len] = '\0';
+         } else if (strncmp(tok, "port=", 5) == 0) {
+             char port[6];
+             char *end;
+ 
+             memset(port, 0x00, 6);
+-            strncpy(port, tok + 5, __MIN(strlen(tok + 5), 5));
++            memcpy(port, tok + 5, __MIN(strlen(tok + 5), 5));
+             if ((end = strstr(port, "-")) != NULL)
+                 *end = '\0';
+             err = parse_port(port, &sys->udp_port);
+--- a/modules/codec/telx.c
++++ b/modules/codec/telx.c
+@@ -555,6 +555,7 @@
+             {
+                 strncpy( p_sys->ppsz_lines[row], psz_line,
+                          sizeof(p_sys->ppsz_lines[row]) - 1);
++                p_sys->ppsz_lines[row][sizeof(p_sys->ppsz_lines[row]) - 1] = '\0';
+             }
+             b_update = true;
+ 
+@@ -588,6 +589,7 @@
+             {
+                 strncpy( p_sys->ppsz_lines[row], t,
+                          sizeof(p_sys->ppsz_lines[row]) - 1 );
++                p_sys->ppsz_lines[row][sizeof(p_sys->ppsz_lines[row]) - 1] = '\0';
+                 b_update = true;
+             }
+ 
+@@ -634,6 +636,7 @@
+             {
+                 strncpy( p_sys->ppsz_lines[0], psz_line,
+                          sizeof(p_sys->ppsz_lines[0]) - 1 );
++                p_sys->ppsz_lines[0][sizeof(p_sys->ppsz_lines[0]) - 1] = '\0';
+                 /* b_update = true; */
+             }
+         }
+--- a/modules/stream_out/rtp.c
++++ b/modules/stream_out/rtp.c
+@@ -1565,7 +1565,7 @@
+ 
+     uint64_t i_ts_init;
+     /* As per RFC 2326, session identifiers are at least 8 bytes long */
+-    strncpy((char *)&i_ts_init, psz_vod_session, sizeof(uint64_t));
++    memcpy(&i_ts_init, psz_vod_session, sizeof(uint64_t));
+     i_ts_init ^= (uintptr_t)p_media;
+     /* Limit the timestamp to 48 bits, this is enough and allows us
+      * to stay away from overflows */
+--- a/modules/spu/remoteosd.c
++++ b/modules/spu/remoteosd.c
+@@ -360,7 +360,7 @@
+ 
+     msg_Dbg( p_filter, "Server version is %s", pv );
+ 
+-    strncpy(pv, "RFB 003.003\n", sz_rfbProtocolVersionMsg);
++    memcpy(pv, "RFB 003.003\n", sz_rfbProtocolVersionMsg);
+ 
+     if( !write_exact(p_filter, fd, pv, sz_rfbProtocolVersionMsg) )
+     {
+--- a/modules/mux/ogg.c
++++ b/modules/mux/ogg.c
+@@ -503,7 +503,7 @@
+             memset( p_stream->p_oggds_header->sub_type, 0, 4 );
+             char buf[5];
+             snprintf( buf, sizeof(buf), "%"PRIx16, i_tag );
+-            strncpy( p_stream->p_oggds_header->sub_type, buf, 4 );
++            memcpy( p_stream->p_oggds_header->sub_type, buf, 4 );
+ 
+             p_stream->p_oggds_header->i_time_unit = INT64_C(10000000);

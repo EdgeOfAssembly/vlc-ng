@@ -89,19 +89,19 @@ static void deNoiseSpacial(
     }
 
     for (long Y = 1; Y < H; Y++){
-        unsigned int PixelAnt;
+        unsigned int PixelAnt2;
         sLineOffs += sStride, dLineOffs += dStride;
         /* First pixel on each line doesn't have previous pixel */
-        PixelAnt = Frame[sLineOffs]<<16;
-        PixelDst = LineAnt[0] = LowPassMul(LineAnt[0], PixelAnt, Vertical);
+        PixelAnt2 = Frame[sLineOffs]<<16;
+        PixelDst = LineAnt[0] = LowPassMul(LineAnt[0], PixelAnt2, Vertical);
         FrameDest[dLineOffs]= ((PixelDst+0x10007FFF)>>16);
 
         for (long X = 1; X < W; X++){
-            unsigned int PixelDst;
+            unsigned int PixelDst2;
             /* The rest are normal */
-            PixelAnt = LowPassMul(PixelAnt, Frame[sLineOffs+X]<<16, Horizontal);
-            PixelDst = LineAnt[X] = LowPassMul(LineAnt[X], PixelAnt, Vertical);
-            FrameDest[dLineOffs+X]= ((PixelDst+0x10007FFF)>>16);
+            PixelAnt2 = LowPassMul(PixelAnt2, Frame[sLineOffs+X]<<16, Horizontal);
+            PixelDst2 = LineAnt[X] = LowPassMul(LineAnt[X], PixelAnt2, Vertical);
+            FrameDest[dLineOffs+X]= ((PixelDst2+0x10007FFF)>>16);
         }
     }
 }
@@ -156,24 +156,24 @@ static void deNoise(unsigned char *Frame,        // mpi->planes[x]
     }
 
     for (long Y = 1; Y < H; Y++){
-        unsigned int PixelAnt;
+        unsigned int PixelAnt2;
         unsigned short* LinePrev=&FrameAnt[Y*W];
         sLineOffs += sStride, dLineOffs += dStride;
         /* First pixel on each line doesn't have previous pixel */
-        PixelAnt = Frame[sLineOffs]<<16;
-        LineAnt[0] = LowPassMul(LineAnt[0], PixelAnt, Vertical);
+        PixelAnt2 = Frame[sLineOffs]<<16;
+        LineAnt[0] = LowPassMul(LineAnt[0], PixelAnt2, Vertical);
         PixelDst = LowPassMul(LinePrev[0]<<8, LineAnt[0], Temporal);
         LinePrev[0] = ((PixelDst+0x1000007F)>>8);
         FrameDest[dLineOffs]= ((PixelDst+0x10007FFF)>>16);
 
         for (long X = 1; X < W; X++){
-            unsigned int PixelDst;
+            unsigned int PixelDst2;
             /* The rest are normal */
-            PixelAnt = LowPassMul(PixelAnt, Frame[sLineOffs+X]<<16, Horizontal);
-            LineAnt[X] = LowPassMul(LineAnt[X], PixelAnt, Vertical);
-            PixelDst = LowPassMul(LinePrev[X]<<8, LineAnt[X], Temporal);
-            LinePrev[X] = ((PixelDst+0x1000007F)>>8);
-            FrameDest[dLineOffs+X]= ((PixelDst+0x10007FFF)>>16);
+            PixelAnt2 = LowPassMul(PixelAnt2, Frame[sLineOffs+X]<<16, Horizontal);
+            LineAnt[X] = LowPassMul(LineAnt[X], PixelAnt2, Vertical);
+            PixelDst2 = LowPassMul(LinePrev[X]<<8, LineAnt[X], Temporal);
+            LinePrev[X] = ((PixelDst2+0x1000007F)>>8);
+            FrameDest[dLineOffs+X]= ((PixelDst2+0x10007FFF)>>16);
         }
     }
 }

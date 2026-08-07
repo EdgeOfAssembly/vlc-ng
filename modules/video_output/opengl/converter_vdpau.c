@@ -79,6 +79,7 @@ tc_vdpau_gl_get_pool(opengl_tex_converter_t const *tc,
     struct priv *priv = tc->priv;
     picture_t *pics[requested_count];
 
+    memset(pics, 0, sizeof(pics));
     unsigned int i;
     for (i = 0; i < requested_count; ++i)
     {

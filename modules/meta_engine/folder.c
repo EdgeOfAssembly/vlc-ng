@@ -159,11 +159,11 @@ static int FindMeta( vlc_object_t *p_this )
 
         if( vlc_stat( filepath, &statinfo ) == 0 && S_ISREG(statinfo.st_mode) )
         {
-            char *psz_uri = vlc_path2uri( filepath, "file" );
-            if( psz_uri )
+            char *psz_uri2 = vlc_path2uri( filepath, "file" );
+            if( psz_uri2 )
             {
-                input_item_SetArtURL( p_item, psz_uri );
-                free( psz_uri );
+                input_item_SetArtURL( p_item, psz_uri2 );
+                free( psz_uri2 );
                 b_have_art = true;
             }
         }

@@ -513,14 +513,14 @@ static int Mux      ( sout_mux_t *p_mux )
         p_stream = &p_sys->stream[i_stream];
 
         p_fifo = p_mux->pp_inputs[i]->p_fifo;
-        i_count = block_FifoCount(  p_fifo );
+        i_count = vlc_fifo_GetCount(  p_fifo );
         while( i_count > 1 )
         {
             avi_idx1_entry_t *p_idx;
             block_t *p_data;
 
             p_data = block_FifoGet( p_fifo );
-            if( block_FifoCount( p_fifo ) > 0 )
+            if( vlc_fifo_GetCount( p_fifo ) > 0 )
             {
                 block_t *p_next = block_FifoShow( p_fifo );
                 p_data->i_length = p_next->i_dts - p_data->i_dts;

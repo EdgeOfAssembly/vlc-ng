@@ -995,8 +995,8 @@ void matroska_segment_c::ComputeTrackPriority()
 
             switch( it->second->fmt.i_cat )
             {
-                case VIDEO_ES: ++track_score;
-                case AUDIO_ES: ++track_score;
+                case VIDEO_ES: ++track_score; /* fall through */
+                case AUDIO_ES: ++track_score; /* fall through */
                 case   SPU_ES: ++track_score;
                 default:
                   if( score < track_score )
@@ -1446,6 +1446,7 @@ int matroska_segment_c::BlockGet( KaxBlock * & pp_block, KaxSimpleBlock * & pp_s
 
                         if ( i_level == 2 )
                             break;
+                        /* fall through */
 
                         ep.Unkeep();
                         pp_simpleblock = NULL;

@@ -183,10 +183,10 @@ void HxxxParseSEI(const uint8_t *p_buf, size_t i_buf,
                 if ( bs_remain( &s ) < (16*6+16*2+32+32) )
                     /* not enough data */
                     break;
-                for ( size_t i = 0; i < 6 ; ++i)
-                    sei_data.colour_volume.primaries[i] = bs_read( &s, 16 );
-                for ( size_t i = 0; i < 2 ; ++i)
-                    sei_data.colour_volume.white_point[i] = bs_read( &s, 16 );
+                for ( size_t j = 0; j < 6 ; ++j)
+                    sei_data.colour_volume.primaries[j] = bs_read( &s, 16 );
+                for ( size_t j = 0; j < 2 ; ++j)
+                    sei_data.colour_volume.white_point[j] = bs_read( &s, 16 );
                 sei_data.colour_volume.max_luminance = bs_read( &s, 32 );
                 sei_data.colour_volume.min_luminance = bs_read( &s, 32 );
                 b_continue = pf_callback( &sei_data, cbdata );

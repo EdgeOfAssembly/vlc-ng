@@ -1,0 +1,18 @@
+--- a/modules/demux/mpeg/es.c
++++ b/modules/demux/mpeg/es.c
+@@ -597,11 +597,11 @@ static int WavSkipHeader( demux_t *p_demux, int *pi_skip, const int pi_format[],
+     }
+ 
+     /* Sanity check the wave format header */
+-        uint32_t i_len2 = GetDWLE( p_peek + i_peek - 4 );
+-        if( i_len2 > WAV_PROBE_SIZE || i_peek + i_len2 > WAV_PROBE_SIZE )
+-            return VLC_EGENERIC;
++    uint32_t i_len = GetDWLE( p_peek + i_peek - 4 );
++    if( i_len > WAV_PROBE_SIZE || i_peek + i_len > WAV_PROBE_SIZE )
++        return VLC_EGENERIC;
+ 
+-        i_peek += i_len2 + 8;
++    i_peek += i_len + 8;
+     if( vlc_stream_Peek( p_demux->s, &p_peek, i_peek ) != i_peek )
+         return VLC_EGENERIC;
+     const int i_format = GetWLE( p_peek + i_peek - i_len - 8 /* wFormatTag */ );

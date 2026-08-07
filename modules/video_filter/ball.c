@@ -633,19 +633,19 @@ static void FilterBall( filter_t *p_filter, picture_t *p_inpic,
     if( p_sys->b_edgeVisible )
     {
         /* Display the edges. */
-        for( int y = 1; y < i_numLines - 1; y++ )
+        for( int y2 = 1; y2 < i_numLines - 1; y2++ )
         {
-            for( int x = 1; x < i_numCols - 1; x++ )
+            for( int x2 = 1; x2 < i_numCols - 1; x2++ )
             {
-                if( abs( p_grad_x[ y * i_numCols + x ] )
-                    + abs( p_grad_y[ y * i_numCols + x ] )
+                if( abs( p_grad_x[ y2 * i_numCols + x2 ] )
+                    + abs( p_grad_y[ y2 * i_numCols + x2 ] )
                     > p_sys->i_gradThresh )
                 {
                     ( *p_sys->drawingPixelFunction )( p_sys, p_outpic,
                                                       p_filter->p_sys->colorList[ WHITE ].comp1,
                                                       p_filter->p_sys->colorList[ WHITE ].comp2,
                                                       p_filter->p_sys->colorList[ WHITE ].comp3,
-                                                      x, y, 0 );
+                                                      x2, y2, 0 );
                 }
             }
         }

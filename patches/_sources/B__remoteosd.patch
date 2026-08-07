@@ -1,0 +1,11 @@
+--- /tmp/vlc-3.0.23.org/modules/spu/remoteosd.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/spu/remoteosd.c	2026-07-03 04:42:28.378131783 +0300
+@@ -360,7 +360,7 @@
+ 
+     msg_Dbg( p_filter, "Server version is %s", pv );
+ 
+-    strncpy(pv, "RFB 003.003\n", sz_rfbProtocolVersionMsg);
++    memcpy(pv, "RFB 003.003\n", sz_rfbProtocolVersionMsg);
+ 
+     if( !write_exact(p_filter, fd, pv, sz_rfbProtocolVersionMsg) )
+     {

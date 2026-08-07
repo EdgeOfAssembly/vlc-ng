@@ -323,7 +323,7 @@ static void Close( vlc_object_t * p_this )
     CommandPush( p_vod, RTSP_CMD_TYPE_NONE, NULL, NULL, 0, 0.0, NULL );
     vlc_join( p_sys->thread, NULL );
 
-    while( block_FifoCount( p_sys->p_fifo_cmd ) > 0 )
+    while( vlc_fifo_GetCount( p_sys->p_fifo_cmd ) > 0 )
     {
         rtsp_cmd_t cmd;
         block_t *p_block_cmd = block_FifoGet( p_sys->p_fifo_cmd );

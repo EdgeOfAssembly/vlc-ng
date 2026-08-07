@@ -1056,6 +1056,7 @@ bool MediaServer::addItem( IXML_Element* itemElement )
                     p_item = holder.createNewItem(p_resource);
                     break;
                 }
+                /* fall through */
             case ItemDescriptionHolder::VIDEO:
             case ItemDescriptionHolder::AUDIO:
                 holder.setArtworkURL(p_resource);

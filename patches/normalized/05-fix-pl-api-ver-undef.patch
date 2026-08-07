@@ -1,0 +1,29 @@
+--- a/modules/video_output/opengl/converter.h
++++ b/modules/video_output/opengl/converter.h
+@@ -54,7 +54,7 @@
+ 
+ #ifdef HAVE_LIBPLACEBO
+ # include <libplacebo/config.h>
+-# if PL_API_VER >= 157
++# if defined(PL_API_VER) && PL_API_VER >= 157
+ #  include <libplacebo/log.h>
+ #  include <libplacebo/shaders.h>
+ # endif
+@@ -280,7 +280,7 @@
+     /* Pointer to object gl, set by the caller */
+     vlc_gl_t *gl;
+ 
+-# if PL_API_VER >= 157
++# if defined(PL_API_VER) && PL_API_VER >= 157
+     pl_log pl_ctx;
+ # else
+     /* libplacebo context, created by the caller (optional) */
+@@ -349,7 +349,7 @@
+     bool yuv_color;
+     GLfloat yuv_coefficients[16];
+ 
+-# if PL_API_VER >= 157
++# if defined(PL_API_VER) && PL_API_VER >= 157
+     pl_shader pl_sh;
+ # else
+     struct pl_shader *pl_sh;

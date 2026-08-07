@@ -790,7 +790,7 @@ static int set_relative_playlist_position_and_play(
 
     libvlc_media_list_path_t path = p_mlp->current_playing_item_path;
 
-    int ret;
+    int ret = 0;
     if(p_mlp->e_playback_mode != libvlc_playback_mode_repeat)
     {
         bool b_loop = (p_mlp->e_playback_mode == libvlc_playback_mode_loop);

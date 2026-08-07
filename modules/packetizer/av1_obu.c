@@ -629,7 +629,7 @@ size_t AV1_create_DecoderConfigurationRecord(uint8_t **pp_buffer,
     if(!p_buffer)
         return 0;
 
-    bs_t bs;
+    bs_t bs = {0};
     bs_write_init(&bs, p_buffer, i_buffer);
     bs_write(&bs, 1, 1); /* unsigned int (1) marker = 1; */
     bs_write(&bs, 7, 1); /* unsigned int (7) version = 1; */

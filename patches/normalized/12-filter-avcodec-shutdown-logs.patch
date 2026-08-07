@@ -1,0 +1,27 @@
+--- a/modules/codec/avcodec/avcommon.h
++++ b/modules/codec/avcodec/avcommon.h
+@@ -117,12 +117,24 @@
+ #ifdef HAVE_LIBAVCODEC_AVCODEC_H
+ # include <libavcodec/avcodec.h>
+ # include <libavcodec/version.h>
++static void vlc_av_log(void *avcl, int level, const char *fmt, va_list args)
++{
++    if (level <= AV_LOG_ERROR &&
++        (strstr(fmt, "get_buffer() failed") ||
++         strstr(fmt, "thread_get_buffer() failed") ||
++         strstr(fmt, "no frame!")))
++        return;
++    av_log_default_callback(avcl, level, fmt, args);
++}
++
+ static inline void vlc_init_avcodec(vlc_object_t *obj)
+ {
+     vlc_avcodec_lock();
+ 
+     vlc_init_avutil(obj);
+ 
++    av_log_set_callback(vlc_av_log);
++
+ #if (LIBAVFORMAT_VERSION_MICRO < 100) || !(LIBAVCODEC_VERSION_CHECK(58, 10, 100))
+     avcodec_register_all();
+ #endif

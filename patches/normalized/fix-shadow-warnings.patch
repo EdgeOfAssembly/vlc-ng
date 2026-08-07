@@ -1,0 +1,698 @@
+--- a/include/vlc_arrays.h
++++ b/include/vlc_arrays.h
+@@ -90,10 +90,10 @@
+ 
+ #define TAB_REMOVE( count, tab, p )             \
+   do {                                          \
+-        int i_index;                            \
+-        TAB_FIND( count, tab, p, i_index );     \
+-        if( i_index >= 0 )                      \
+-            TAB_ERASE( count, tab, i_index );   \
++        int i_index_;                           \
++        TAB_FIND( count, tab, p, i_index_ );    \
++        if( i_index_ >= 0 )                     \
++            TAB_ERASE( count, tab, i_index_ );  \
+   } while(0)
+ 
+ #define TAB_INSERT_CAST( cast, count, tab, p, index ) do { \
+@@ -226,10 +226,10 @@
+     BSEARCH( (array).p_elems, (array).i_size, elem, zetype, key, answer)
+ 
+ #define FOREACH_ARRAY( item, array ) { \
+-    int fe_idx; \
+-    for( fe_idx = 0 ; fe_idx < (array).i_size ; fe_idx++ ) \
++    int fe_idx_; \
++    for( fe_idx_ = 0 ; fe_idx_ < (array).i_size ; fe_idx_++ ) \
+     { \
+-        item = (array).p_elems[fe_idx];
++        item = (array).p_elems[fe_idx_];
+ 
+ #define FOREACH_END() } }
+ 
+--- a/modules/codec/flac.c
++++ b/modules/codec/flac.c
+@@ -349,10 +349,10 @@
+                         {
+                             if( (i_chan & i_wfxmask) == 0 )
+                                 continue;
+-                            for( size_t i=0; i<MAPPED_WFX_CHANNELS; i++ )
++                            for( size_t j=0; j<MAPPED_WFX_CHANNELS; j++ )
+                             {
+-                                if( wfx_remapping[i][0] == i_chan )
+-                                    i_vlcmask |= wfx_remapping[i][1];
++                                if( wfx_remapping[j][0] == i_chan )
++                                    i_vlcmask |= wfx_remapping[j][1];
+                             }
+                         }
+                         /* Check if we have the 1 to 1 mapping */
+@@ -369,8 +369,8 @@
+ 
+                         /* /!\ Invert our source/dest reordering,
+                          * as Interleave() here works source indexes */
+-                        for( unsigned i=0; i<i_wfxchannels; i++ )
+-                            p_sys->rgi_channels_reorder[neworder[i]] = i;
++                        for( unsigned k=0; k<i_wfxchannels; k++ )
++                            p_sys->rgi_channels_reorder[neworder[k]] = k;
+ 
+                         p_dec->fmt_out.audio.i_physical_channels = i_vlcmask;
+                         p_dec->fmt_out.audio.i_channels = i_wfxchannels;
+--- a/modules/codec/kate.c
++++ b/modules/codec/kate.c
+@@ -53,10 +53,10 @@
+ #define CHECK_TIGER_RET( statement )                                   \
+     do                                                                 \
+     {                                                                  \
+-        int i_ret = (statement);                                       \
+-        if( i_ret < 0 )                                                \
++        int i_tiger_ret = (statement);                                 \
++        if( i_tiger_ret < 0 )                                          \
+         {                                                              \
+-            msg_Dbg( p_dec, "Error in " #statement ": %d", i_ret );    \
++            msg_Dbg( p_dec, "Error in " #statement ": %d", i_tiger_ret ); \
+         }                                                              \
+     } while( 0 )
+ 
+--- a/modules/codec/oggspots.c
++++ b/modules/codec/oggspots.c
+@@ -270,12 +270,12 @@
+      * latter are underspecified. */
+ 
+     if (p_sys->b_packetizer) {
+-        void* p_extra = realloc(p_dec->fmt_out.p_extra,
++        void* p_extra_new = realloc(p_dec->fmt_out.p_extra,
+                                 p_dec->fmt_in.i_extra);
+-        if (unlikely(p_extra == NULL)) {
++        if (unlikely(p_extra_new == NULL)) {
+             return VLC_ENOMEM;
+         }
+-        p_dec->fmt_out.p_extra = p_extra;
++        p_dec->fmt_out.p_extra = p_extra_new;
+         p_dec->fmt_out.i_extra = p_dec->fmt_in.i_extra;
+         memcpy(p_dec->fmt_out.p_extra,
+                p_dec->fmt_in.p_extra, p_dec->fmt_out.i_extra);
+--- a/modules/codec/subsdec.c
++++ b/modules/codec/subsdec.c
+@@ -898,14 +898,14 @@
+             }
+             else if( !strncmp( psz_subtitle, "</", 2 ))
+             {
+-                char* psz_tagname = GetTag( &psz_subtitle, true );
+-                if ( psz_tagname != NULL )
++                char* psz_tagname2 = GetTag( &psz_subtitle, true );
++                if ( psz_tagname2 != NULL )
+                 {
+-                    if ( !strcasecmp( psz_tagname, "b" ) ||
+-                         !strcasecmp( psz_tagname, "i" ) ||
+-                         !strcasecmp( psz_tagname, "u" ) ||
+-                         !strcasecmp( psz_tagname, "s" ) ||
+-                         !strcasecmp( psz_tagname, "font" ) )
++                    if ( !strcasecmp( psz_tagname2, "b" ) ||
++                         !strcasecmp( psz_tagname2, "i" ) ||
++                         !strcasecmp( psz_tagname2, "u" ) ||
++                         !strcasecmp( psz_tagname2, "s" ) ||
++                         !strcasecmp( psz_tagname2, "font" ) )
+                     {
+                         // A closing tag for one of the tags we handle, meaning
+                         // we pushed a style onto the stack earlier
+@@ -914,10 +914,10 @@
+                     else
+                     {
+                         // Unknown closing tag. If it is closing an unknown tag, ignore it. Otherwise, display it
+-                        if ( !HasTag( &p_tag_stack, psz_tagname ) )
++                        if ( !HasTag( &p_tag_stack, psz_tagname2 ) )
+                         {
+                             AppendString( p_segment, "</" );
+-                            AppendString( p_segment, psz_tagname );
++                            AppendString( p_segment, psz_tagname2 );
+                             AppendCharacter( p_segment, '>' );
+                         }
+                     }
+@@ -925,7 +925,7 @@
+                         psz_subtitle++;
+                     if ( *psz_subtitle == '>' )
+                         psz_subtitle++;
+-                    free( psz_tagname );
++                    free( psz_tagname2 );
+                 }
+                 else
+                 {
+--- a/modules/codec/gstreamer/gstdecode.c
++++ b/modules/codec/gstreamer/gstdecode.c
+@@ -769,11 +769,11 @@
+     /* Look for any output buffers in the queue */
+     if( gst_atomic_queue_peek( p_sys->p_que ) )
+     {
+-        GstBuffer *p_buf = GST_BUFFER_CAST(
++        GstBuffer *p_out_buf = GST_BUFFER_CAST(
+                 gst_atomic_queue_pop( p_sys->p_que ));
+         GstMemory *p_mem;
+ 
+-        if(( p_mem = gst_buffer_peek_memory( p_buf, 0 )) &&
++        if(( p_mem = gst_buffer_peek_memory( p_out_buf, 0 )) &&
+             GST_IS_VLC_PICTURE_PLANE_ALLOCATOR( p_mem->allocator ))
+         {
+             p_pic = picture_Hold(( (GstVlcPicturePlane*) p_mem )->p_pic );
+@@ -790,10 +790,10 @@
+                 goto done;
+ 
+             if( unlikely( !gst_video_frame_map( &frame,
+-                            &p_sys->vinfo, p_buf, GST_MAP_READ ) ) )
++                            &p_sys->vinfo, p_out_buf, GST_MAP_READ ) ) )
+             {
+                 msg_Err( p_dec, "failed to map gst video frame" );
+-                gst_buffer_unref( p_buf );
++                gst_buffer_unref( p_out_buf );
+                 return VLCDEC_ECRITICAL;
+             }
+ 
+@@ -801,13 +801,13 @@
+             gst_video_frame_unmap( &frame );
+         }
+ 
+-        if( likely( GST_BUFFER_PTS_IS_VALID( p_buf ) ) )
++        if( likely( GST_BUFFER_PTS_IS_VALID( p_out_buf ) ) )
+             p_pic->date = gst_util_uint64_scale(
+-                GST_BUFFER_PTS( p_buf ), GST_MSECOND, GST_SECOND );
++                GST_BUFFER_PTS( p_out_buf ), GST_MSECOND, GST_SECOND );
+         else
+             msg_Warn( p_dec, "Gst Buffer has no timestamp" );
+ 
+-        gst_buffer_unref( p_buf );
++        gst_buffer_unref( p_out_buf );
+     }
+ 
+ done:
+--- a/modules/demux/mpeg/es.c
++++ b/modules/demux/mpeg/es.c
+@@ -437,9 +437,9 @@
+             {
+                 int64_t i_time = va_arg(args, int64_t);
+                 uint64_t i_pos = SeekByMlltTable( p_demux, &i_time );
+-                int i_ret = vlc_stream_Seek( p_demux->s, p_sys->i_stream_offset + i_pos );
+-                if( i_ret != VLC_SUCCESS )
+-                    return i_ret;
++                int i_ret2 = vlc_stream_Seek( p_demux->s, p_sys->i_stream_offset + i_pos );
++                if( i_ret2 != VLC_SUCCESS )
++                    return i_ret2;
+                 p_sys->i_time_offset = i_time - p_sys->i_pts;
+                 /* And reset buffered data */
+                 if( p_sys->p_packetized_data )
+@@ -449,6 +449,7 @@
+             }
+             /* FIXME TODO: implement a high precision seek (with mp3 parsing)
+              * needed for multi-input */
++            /* fall through */
+         }
+         default:
+             i_ret = demux_vaControlHelper( p_demux->s, p_sys->i_stream_offset, -1,
+@@ -597,11 +598,11 @@
+     }
+ 
+     /* Sanity check the wave format header */
+-    uint32_t i_len = GetDWLE( p_peek + i_peek - 4 );
+-    if( i_len > WAV_PROBE_SIZE )
+-        return VLC_EGENERIC;
++        uint32_t i_len2 = GetDWLE( p_peek + i_peek - 4 );
++        if( i_len2 > WAV_PROBE_SIZE || i_peek + i_len2 > WAV_PROBE_SIZE )
++            return VLC_EGENERIC;
+ 
+-    i_peek += i_len + 8;
++        i_peek += i_len2 + 8;
+     if( vlc_stream_Peek( p_demux->s, &p_peek, i_peek ) != i_peek )
+         return VLC_EGENERIC;
+     const int i_format = GetWLE( p_peek + i_peek - i_len - 8 /* wFormatTag */ );
+--- a/modules/lua/extension.c
++++ b/modules/lua/extension.c
+@@ -380,7 +380,7 @@
+                 {
+                     /* Key is at index -2 and value at index -1. Discard key */
+                     const char *psz_cap = luaL_checkstring( L, -1 );
+-                    bool b_ok = false;
++                    bool b_ok2 = false;
+                     /* Find this capability's flag */
+                     for( size_t i = 0; i < sizeof(caps)/sizeof(caps[0]); i++ )
+                     {
+@@ -388,11 +388,11 @@
+                         {
+                             /* Flag it! */
+                             p_ext->p_sys->i_capabilities |= 1 << i;
+-                            b_ok = true;
++                            b_ok2 = true;
+                             break;
+                         }
+                     }
+-                    if( !b_ok )
++                    if( !b_ok2 )
+                     {
+                         msg_Warn( p_mgr, "Extension capability '%s' unknown in"
+                                   " script %s", psz_cap, psz_script );
+@@ -624,21 +624,21 @@
+         }
+         case EXTENSION_PLAYING_CHANGED:
+         {
+-            extension_t *p_ext;
+-            p_ext = ( extension_t* ) va_arg( args, extension_t* );
+-            assert( p_ext->psz_name != NULL );
++            extension_t *p_ext2;
++            p_ext2 = ( extension_t* ) va_arg( args, extension_t* );
++            assert( p_ext2->psz_name != NULL );
+             i = ( int ) va_arg( args, int );
+-            if( p_ext->p_sys->i_capabilities & EXT_PLAYING_LISTENER )
++            if( p_ext2->p_sys->i_capabilities & EXT_PLAYING_LISTENER )
+             {
+-                PushCommand( p_ext, CMD_PLAYING_CHANGED, i );
++                PushCommand( p_ext2, CMD_PLAYING_CHANGED, i );
+             }
+             break;
+         }
+         case EXTENSION_META_CHANGED:
+         {
+-            extension_t *p_ext;
+-            p_ext = ( extension_t* ) va_arg( args, extension_t* );
+-            PushCommand( p_ext, CMD_UPDATE_META );
++            extension_t *p_ext2;
++            p_ext2 = ( extension_t* ) va_arg( args, extension_t* );
++            PushCommand( p_ext2, CMD_UPDATE_META );
+             break;
+         }
+         default:
+--- a/modules/meta_engine/folder.c
++++ b/modules/meta_engine/folder.c
+@@ -159,11 +159,11 @@
+ 
+         if( vlc_stat( filepath, &statinfo ) == 0 && S_ISREG(statinfo.st_mode) )
+         {
+-            char *psz_uri = vlc_path2uri( filepath, "file" );
+-            if( psz_uri )
++            char *psz_uri2 = vlc_path2uri( filepath, "file" );
++            if( psz_uri2 )
+             {
+-                input_item_SetArtURL( p_item, psz_uri );
+-                free( psz_uri );
++                input_item_SetArtURL( p_item, psz_uri2 );
++                free( psz_uri2 );
+                 b_have_art = true;
+             }
+         }
+--- a/modules/misc/rtsp.c
++++ b/modules/misc/rtsp.c
+@@ -323,7 +323,7 @@
+     CommandPush( p_vod, RTSP_CMD_TYPE_NONE, NULL, NULL, 0, 0.0, NULL );
+     vlc_join( p_sys->thread, NULL );
+ 
+-    while( block_FifoCount( p_sys->p_fifo_cmd ) > 0 )
++    while( vlc_fifo_GetCount( p_sys->p_fifo_cmd ) > 0 )
+     {
+         rtsp_cmd_t cmd;
+         block_t *p_block_cmd = block_FifoGet( p_sys->p_fifo_cmd );
+@@ -966,7 +966,7 @@
+             if( strstr( psz_transport, "unicast" ) &&
+                 strstr( psz_transport, "client_port=" ) )
+             {
+-                rtsp_client_t *p_rtsp = NULL;
++                rtsp_client_t *p_rtsp2 = NULL;
+                 char ip[NI_MAXNUMERICHOST];
+                 int i_port = atoi( strstr( psz_transport, "client_port=" ) +
+                                    strlen("client_port=") );
+@@ -1298,7 +1298,7 @@
+             if( strstr( psz_transport, "unicast" ) &&
+                 strstr( psz_transport, "client_port=" ) )
+             {
+-                rtsp_client_t *p_rtsp = NULL;
++                rtsp_client_t *p_rtsp2 = NULL;
+                 rtsp_client_es_t *p_rtsp_es = NULL;
+                 char ip[NI_MAXNUMERICHOST];
+                 int i_port = atoi( strstr( psz_transport, "client_port=" ) +
+--- a/modules/mux/asf.c
++++ b/modules/mux/asf.c
+@@ -997,21 +997,21 @@
+     {
+         unsigned int i_dst_num, i_dst_den;
+ 
+-        asf_track_t *tk = NULL;
++        asf_track_t *tk2 = NULL;
+         for( size_t i = 0; i < vlc_array_count( &p_sys->tracks ); i++ )
+         {
+-            tk = vlc_array_item_at_index( &p_sys->tracks, i );
+-            if( tk->i_cat == VIDEO_ES &&
+-                tk->fmt.video.i_sar_num != 0 &&
+-                tk->fmt.video.i_sar_den != 0 )
++            tk2 = vlc_array_item_at_index( &p_sys->tracks, i );
++            if( tk2->i_cat == VIDEO_ES &&
++                tk2->fmt.video.i_sar_num != 0 &&
++                tk2->fmt.video.i_sar_den != 0 )
+             {
+                 vlc_ureduce( &i_dst_num, &i_dst_den,
+-                             tk->fmt.video.i_sar_num,
+-                             tk->fmt.video.i_sar_den, 0 );
++                             tk2->fmt.video.i_sar_num,
++                             tk2->fmt.video.i_sar_den, 0 );
+                 break;
+             }
+         }
+-        assert( tk != NULL );
++        assert( tk2 != NULL );
+ 
+         msg_Dbg( p_mux, "pixel aspect-ratio: %i/%i", i_dst_num, i_dst_den );
+ 
+--- a/modules/mux/ogg.c
++++ b/modules/mux/ogg.c
+@@ -503,7 +503,7 @@
+             memset( p_stream->p_oggds_header->sub_type, 0, 4 );
+             char buf[5];
+             snprintf( buf, sizeof(buf), "%"PRIx16, i_tag );
+-            strncpy( p_stream->p_oggds_header->sub_type, buf, 4 );
++            memcpy( p_stream->p_oggds_header->sub_type, buf, 4 );
+ 
+             p_stream->p_oggds_header->i_time_unit = INT64_C(10000000);
+             p_stream->p_oggds_header->i_default_len = 1;
+@@ -567,7 +567,7 @@
+     {
+         if( !p_stream->b_new )
+         {
+-            while( block_FifoCount( p_input->p_fifo ) )
++            while( vlc_fifo_GetCount( p_input->p_fifo ) )
+                 MuxBlock( p_mux, p_input );
+         }
+ 
+@@ -1122,8 +1122,8 @@
+         for( int i = 0; i < p_mux->i_nb_inputs; i++ )
+         {
+             sout_input_t *p_input = p_mux->pp_inputs[i];
+-            ogg_stream_t *p_stream = (ogg_stream_t*)p_input->p_sys;
+-            if ( p_stream->skeleton.b_fisbone_done ) continue;
++            ogg_stream_t *p_stream2 = (ogg_stream_t*)p_input->p_sys;
++            if ( p_stream2->skeleton.b_fisbone_done ) continue;
+             OggGetSkeletonFisbone( &op.packet, &op.bytes, p_input, p_mux );
+             if ( op.packet == NULL ) return false;
+             op.b_o_s = 0;
+@@ -1134,7 +1134,7 @@
+             ogg_packet_clear( &op );
+             p_og = OggStreamFlush( p_mux, &p_sys->skeleton.os, 0 );
+             block_ChainAppend( &p_hdr, p_og );
+-            p_stream->skeleton.b_fisbone_done = true;
++            p_stream2->skeleton.b_fisbone_done = true;
+         }
+     }
+ 
+@@ -1151,15 +1151,15 @@
+     for( int i = 0; i < p_mux->i_nb_inputs; i++ )
+     {
+         sout_input_t *p_input = p_mux->pp_inputs[i];
+-        ogg_stream_t *p_stream = (ogg_stream_t*)p_input->p_sys;
++        ogg_stream_t *p_stream2 = (ogg_stream_t*)p_input->p_sys;
+         /* flush stream && save offset */
+-        if ( p_sys->skeleton.b_create && !p_stream->skeleton.b_index_done )
++        if ( p_sys->skeleton.b_create && !p_stream2->skeleton.b_index_done )
+         {
+-            if ( !p_stream->skeleton.p_index ) AllocateIndex( p_mux, p_input );
+-            if ( p_stream->skeleton.p_index )
++            if ( !p_stream2->skeleton.p_index ) AllocateIndex( p_mux, p_input );
++            if ( p_stream2->skeleton.p_index )
+             {
+-                msg_Dbg( p_mux, "Creating index for stream %d", p_stream->i_serial_no );
+-                OggGetSkeletonIndex( &op.packet, &op.bytes, p_stream );
++                msg_Dbg( p_mux, "Creating index for stream %d", p_stream2->i_serial_no );
++                OggGetSkeletonIndex( &op.packet, &op.bytes, p_stream2 );
+                 if ( op.packet == NULL ) return false;
+                 op.b_o_s = 0;
+                 op.e_o_s = 0;
+@@ -1167,16 +1167,16 @@
+                 op.packetno = p_sys->skeleton.i_packet_no++;
+ 
+                 /* backup some values */
+-                p_stream->skeleton.i_index_offset = p_mux->p_sys->i_pos;
+-                p_stream->skeleton.i_index_packetno = p_sys->skeleton.os.packetno;
+-                p_stream->skeleton.i_index_pageno = p_sys->skeleton.os.pageno;
++                p_stream2->skeleton.i_index_offset = p_mux->p_sys->i_pos;
++                p_stream2->skeleton.i_index_packetno = p_sys->skeleton.os.packetno;
++                p_stream2->skeleton.i_index_pageno = p_sys->skeleton.os.pageno;
+ 
+                 ogg_stream_packetin( &p_sys->skeleton.os, &op );
+                 ogg_packet_clear( &op );
+                 p_og = OggStreamFlush( p_mux, &p_sys->skeleton.os, 0 );
+                 p_mux->p_sys->i_pos += sout_AccessOutWrite( p_mux->p_access, p_og );
+             }
+-            p_stream->skeleton.b_index_done = true;
++            p_stream2->skeleton.b_index_done = true;
+         }
+     }
+ 
+@@ -1184,13 +1184,13 @@
+     for( int i = 0; i < p_mux->i_nb_inputs; i++ )
+     {
+         sout_input_t *p_input = p_mux->pp_inputs[i];
+-        ogg_stream_t *p_stream = (ogg_stream_t*)p_input->p_sys;
++        ogg_stream_t *p_stream2 = (ogg_stream_t*)p_input->p_sys;
+ 
+-        if( p_stream->fmt.i_codec == VLC_CODEC_VORBIS ||
+-            p_stream->fmt.i_codec == VLC_CODEC_SPEEX ||
+-            p_stream->fmt.i_codec == VLC_CODEC_OPUS ||
+-            p_stream->fmt.i_codec == VLC_CODEC_THEORA ||
+-            p_stream->fmt.i_codec == VLC_CODEC_DAALA )
++        if( p_stream2->fmt.i_codec == VLC_CODEC_VORBIS ||
++            p_stream2->fmt.i_codec == VLC_CODEC_SPEEX ||
++            p_stream2->fmt.i_codec == VLC_CODEC_OPUS ||
++            p_stream2->fmt.i_codec == VLC_CODEC_THEORA ||
++            p_stream2->fmt.i_codec == VLC_CODEC_DAALA )
+         {
+             unsigned pi_size[XIPH_MAX_HEADER_COUNT];
+             const void *pp_data[XIPH_MAX_HEADER_COUNT];
+--- a/modules/packetizer/hxxx_sei.c
++++ b/modules/packetizer/hxxx_sei.c
+@@ -183,10 +183,10 @@
+                 if ( bs_remain( &s ) < (16*6+16*2+32+32) )
+                     /* not enough data */
+                     break;
+-                for ( size_t i = 0; i < 6 ; ++i)
+-                    sei_data.colour_volume.primaries[i] = bs_read( &s, 16 );
+-                for ( size_t i = 0; i < 2 ; ++i)
+-                    sei_data.colour_volume.white_point[i] = bs_read( &s, 16 );
++                for ( size_t j = 0; j < 6 ; ++j)
++                    sei_data.colour_volume.primaries[j] = bs_read( &s, 16 );
++                for ( size_t j = 0; j < 2 ; ++j)
++                    sei_data.colour_volume.white_point[j] = bs_read( &s, 16 );
+                 sei_data.colour_volume.max_luminance = bs_read( &s, 32 );
+                 sei_data.colour_volume.min_luminance = bs_read( &s, 32 );
+                 b_continue = pf_callback( &sei_data, cbdata );
+--- a/modules/services_discovery/podcast.c
++++ b/modules/services_discovery/podcast.c
+@@ -355,8 +355,8 @@
+         }
+     }
+     free( p_sys->pp_items );
+-    for( int i = 0; i < p_sys->i_urls; i++ )
+-        free( p_sys->ppsz_urls[i] );
++    for( int k = 0; k < p_sys->i_urls; k++ )
++        free( p_sys->ppsz_urls[k] );
+     free( p_sys->ppsz_urls );
+ 
+     p_sys->ppsz_urls = ppsz_new_urls;
+--- a/modules/stream_out/rtsp.c
++++ b/modules/stream_out/rtsp.c
+@@ -1149,37 +1149,37 @@
+ 
+         case HTTPD_MSG_TEARDOWN:
+         {
+-            rtsp_session_t *ses;
++            rtsp_session_t *ses2;
+ 
+             answer->i_status = 200;
+ 
+             psz_session = httpd_MsgGet( query, "Session" );
+ 
+             vlc_mutex_lock( &rtsp->lock );
+-            ses = RtspClientGet( rtsp, psz_session );
+-            if( ses != NULL )
++            ses2 = RtspClientGet( rtsp, psz_session );
++            if( ses2 != NULL )
+             {
+                 if( id == NULL ) /* Delete the entire session */
+                 {
+-                    RtspClientDel( rtsp, ses );
++                    RtspClientDel( rtsp, ses2 );
+                     if (vod)
+                         vod_stop(rtsp->vod_media, psz_session);
+                     RtspUpdateTimer(rtsp);
+                 }
+                 else /* Delete one track from the session */
+                 {
+-                    for( int i = 0; i < ses->trackc; i++ )
++                    for( int i = 0; i < ses2->trackc; i++ )
+                     {
+-                        if( ses->trackv[i].id == id )
++                        if( ses2->trackv[i].id == id )
+                         {
+-                            RtspTrackClose( &ses->trackv[i] );
++                            RtspTrackClose( &ses2->trackv[i] );
+                             /* Keep VoD tracks whose instance is still
+                              * running */
+-                            if (!(vod && ses->trackv[i].sout_id != NULL))
+-                                TAB_ERASE(ses->trackc, ses->trackv, i);
++                            if (!(vod && ses2->trackv[i].sout_id != NULL))
++                                TAB_ERASE(ses2->trackc, ses2->trackv, i);
+                         }
+                     }
+-                    RtspClientAlive(ses);
++                    RtspClientAlive(ses2);
+                 }
+             }
+             vlc_mutex_unlock( &rtsp->lock );
+--- a/modules/video_filter/ball.c
++++ b/modules/video_filter/ball.c
+@@ -633,19 +633,19 @@
+     if( p_sys->b_edgeVisible )
+     {
+         /* Display the edges. */
+-        for( int y = 1; y < i_numLines - 1; y++ )
++        for( int y2 = 1; y2 < i_numLines - 1; y2++ )
+         {
+-            for( int x = 1; x < i_numCols - 1; x++ )
++            for( int x2 = 1; x2 < i_numCols - 1; x2++ )
+             {
+-                if( abs( p_grad_x[ y * i_numCols + x ] )
+-                    + abs( p_grad_y[ y * i_numCols + x ] )
++                if( abs( p_grad_x[ y2 * i_numCols + x2 ] )
++                    + abs( p_grad_y[ y2 * i_numCols + x2 ] )
+                     > p_sys->i_gradThresh )
+                 {
+                     ( *p_sys->drawingPixelFunction )( p_sys, p_outpic,
+                                                       p_filter->p_sys->colorList[ WHITE ].comp1,
+                                                       p_filter->p_sys->colorList[ WHITE ].comp2,
+                                                       p_filter->p_sys->colorList[ WHITE ].comp3,
+-                                                      x, y, 0 );
++                                                      x2, y2, 0 );
+                 }
+             }
+         }
+--- a/modules/video_filter/hqdn3d.h
++++ b/modules/video_filter/hqdn3d.h
+@@ -89,19 +89,19 @@
+     }
+ 
+     for (long Y = 1; Y < H; Y++){
+-        unsigned int PixelAnt;
++        unsigned int PixelAnt2;
+         sLineOffs += sStride, dLineOffs += dStride;
+         /* First pixel on each line doesn't have previous pixel */
+-        PixelAnt = Frame[sLineOffs]<<16;
+-        PixelDst = LineAnt[0] = LowPassMul(LineAnt[0], PixelAnt, Vertical);
++        PixelAnt2 = Frame[sLineOffs]<<16;
++        PixelDst = LineAnt[0] = LowPassMul(LineAnt[0], PixelAnt2, Vertical);
+         FrameDest[dLineOffs]= ((PixelDst+0x10007FFF)>>16);
+ 
+         for (long X = 1; X < W; X++){
+-            unsigned int PixelDst;
++            unsigned int PixelDst2;
+             /* The rest are normal */
+-            PixelAnt = LowPassMul(PixelAnt, Frame[sLineOffs+X]<<16, Horizontal);
+-            PixelDst = LineAnt[X] = LowPassMul(LineAnt[X], PixelAnt, Vertical);
+-            FrameDest[dLineOffs+X]= ((PixelDst+0x10007FFF)>>16);
++            PixelAnt2 = LowPassMul(PixelAnt2, Frame[sLineOffs+X]<<16, Horizontal);
++            PixelDst2 = LineAnt[X] = LowPassMul(LineAnt[X], PixelAnt2, Vertical);
++            FrameDest[dLineOffs+X]= ((PixelDst2+0x10007FFF)>>16);
+         }
+     }
+ }
+@@ -156,24 +156,24 @@
+     }
+ 
+     for (long Y = 1; Y < H; Y++){
+-        unsigned int PixelAnt;
++        unsigned int PixelAnt2;
+         unsigned short* LinePrev=&FrameAnt[Y*W];
+         sLineOffs += sStride, dLineOffs += dStride;
+         /* First pixel on each line doesn't have previous pixel */
+-        PixelAnt = Frame[sLineOffs]<<16;
+-        LineAnt[0] = LowPassMul(LineAnt[0], PixelAnt, Vertical);
++        PixelAnt2 = Frame[sLineOffs]<<16;
++        LineAnt[0] = LowPassMul(LineAnt[0], PixelAnt2, Vertical);
+         PixelDst = LowPassMul(LinePrev[0]<<8, LineAnt[0], Temporal);
+         LinePrev[0] = ((PixelDst+0x1000007F)>>8);
+         FrameDest[dLineOffs]= ((PixelDst+0x10007FFF)>>16);
+ 
+         for (long X = 1; X < W; X++){
+-            unsigned int PixelDst;
++            unsigned int PixelDst2;
+             /* The rest are normal */
+-            PixelAnt = LowPassMul(PixelAnt, Frame[sLineOffs+X]<<16, Horizontal);
+-            LineAnt[X] = LowPassMul(LineAnt[X], PixelAnt, Vertical);
+-            PixelDst = LowPassMul(LinePrev[X]<<8, LineAnt[X], Temporal);
+-            LinePrev[X] = ((PixelDst+0x1000007F)>>8);
+-            FrameDest[dLineOffs+X]= ((PixelDst+0x10007FFF)>>16);
++            PixelAnt2 = LowPassMul(PixelAnt2, Frame[sLineOffs+X]<<16, Horizontal);
++            LineAnt[X] = LowPassMul(LineAnt[X], PixelAnt2, Vertical);
++            PixelDst2 = LowPassMul(LinePrev[X]<<8, LineAnt[X], Temporal);
++            LinePrev[X] = ((PixelDst2+0x1000007F)>>8);
++            FrameDest[dLineOffs+X]= ((PixelDst2+0x10007FFF)>>16);
+         }
+     }
+ }
+--- a/modules/video_filter/deinterlace/yadif.h
++++ b/modules/video_filter/deinterlace/yadif.h
+@@ -85,11 +85,11 @@
+ #define FFABS abs
+ 
+ #define CHECK(j)\
+-    {   int score = FFABS(cur[mrefs-1+(j)] - cur[prefs-1-(j)])\
++    {   int score2 = FFABS(cur[mrefs-1+(j)] - cur[prefs-1-(j)])\
+                   + FFABS(cur[mrefs  +(j)] - cur[prefs  -(j)])\
+                   + FFABS(cur[mrefs+1+(j)] - cur[prefs+1-(j)]);\
+-        if (score < spatial_score) {\
+-            spatial_score= score;\
++        if (score2 < spatial_score) {\
++            spatial_score= score2;\
+             spatial_pred= (cur[mrefs  +(j)] + cur[prefs  -(j)])>>1;\
+ 
+ #define FILTER \
+--- a/modules/video_filter/deinterlace/algo_phosphor.c
++++ b/modules/video_filter/deinterlace/algo_phosphor.c
+@@ -129,7 +129,7 @@
+              i_plane < p_dst->i_planes;
+              i_plane++ )
+         {
+-            int w = p_dst->p[i_plane].i_visible_pitch;
++            int w2 = p_dst->p[i_plane].i_visible_pitch;
+             p_out = p_dst->p[i_plane].p_pixels;
+             p_out_end = p_out + p_dst->p[i_plane].i_pitch
+                               * p_dst->p[i_plane].i_visible_lines;
+@@ -142,7 +142,7 @@
+             {
+                 /* Handle the width remainder */
+                 uint8_t *po = p_out;
+-                for( int x = 0; x < w; ++x, ++po )
++                for( int x = 0; x < w2; ++x, ++po )
+                     (*po) = 128 + ( ((*po) - 128) / (1 << i_strength) );
+             } /* for p_out... */
+         } /* for i_plane... */
+@@ -212,9 +212,9 @@
+              i_plane < p_dst->i_planes;
+              i_plane++ )
+         {
+-            int w = p_dst->p[i_plane].i_visible_pitch;
+-            int wm8 = w % 8;   /* remainder */
+-            int w8  = w - wm8; /* part of width that is divisible by 8 */
++            int w2 = p_dst->p[i_plane].i_visible_pitch;
++            int wm8_2 = w2 % 8;   /* remainder */
++            int w8_2  = w2 - wm8_2; /* part of width that is divisible by 8 */
+ 
+             p_out = p_dst->p[i_plane].p_pixels;
+             p_out_end = p_out + p_dst->p[i_plane].i_pitch
+@@ -238,7 +238,7 @@
+                 movq_m2r( remove_high_u64, mm7 );
+ 
+                 uint64_t *po8 = (uint64_t *)p_out;
+-                for( ; x < w8; x += 8 )
++                for( ; x < w8_2; x += 8 )
+                 {
+                     movq_m2r( (*po8), mm0 );
+ 
+@@ -262,7 +262,7 @@
+ 
+                 /* C version - handle the width remainder */
+                 uint8_t *po = p_out;
+-                for( ; x < w; ++x, ++po )
++                for( ; x < w2; ++x, ++po )
+                     (*po) = 128 + ( ((*po) - 128) / (1 << i_strength) );
+             } /* for p_out... */
+         } /* for i_plane... */

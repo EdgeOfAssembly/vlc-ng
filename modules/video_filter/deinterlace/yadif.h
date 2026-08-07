@@ -85,11 +85,11 @@ const ATTR_USED alignas (16) xmm_reg pw_1 = {
 #define FFABS abs
 
 #define CHECK(j)\
-    {   int score = FFABS(cur[mrefs-1+(j)] - cur[prefs-1-(j)])\
+    {   int score2 = FFABS(cur[mrefs-1+(j)] - cur[prefs-1-(j)])\
                   + FFABS(cur[mrefs  +(j)] - cur[prefs  -(j)])\
                   + FFABS(cur[mrefs+1+(j)] - cur[prefs+1-(j)]);\
-        if (score < spatial_score) {\
-            spatial_score= score;\
+        if (score2 < spatial_score) {\
+            spatial_score= score2;\
             spatial_pred= (cur[mrefs  +(j)] + cur[prefs  -(j)])>>1;\
 
 #define FILTER \

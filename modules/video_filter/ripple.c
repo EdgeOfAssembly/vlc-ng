@@ -158,7 +158,7 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic )
             CASE_PACKED_YUV_422
                 // Quick hack to fix u/v inversion occurring with 2 byte pixel pitch
                 i_pixel_pitch *= 2;
-                /* fallthrough */
+                /* fall through */
             CASE_PLANAR_YUV
                 black_pixel = ( p_pic->i_planes > 1 && i_index == Y_PLANE ) ? 0x00
                                                                             : 0x80;

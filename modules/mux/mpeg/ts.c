@@ -1068,7 +1068,7 @@ static void SetBlockDuration( sout_input_t *p_input, block_t *p_data )
     sout_input_sys_t *p_stream = (sout_input_sys_t*) p_input->p_sys;
 
     if( p_input->p_fmt->i_cat != SPU_ES &&
-        block_FifoCount( p_input->p_fifo ) > 0 )
+        vlc_fifo_GetCount( p_input->p_fifo ) > 0 )
     {
         block_t *p_next = block_FifoShow( p_input->p_fifo );
         vlc_tick_t i_diff = p_next->i_dts - p_data->i_dts;
@@ -1232,7 +1232,7 @@ static bool MuxStreams(sout_mux_t *p_mux )
             continue;
 
         /* Need more data */
-        if( block_FifoCount( p_input->p_fifo ) <= 1 )
+        if( vlc_fifo_GetCount( p_input->p_fifo ) <= 1 )
         {
             if( ( p_input->p_fmt->i_cat == AUDIO_ES ) ||
                 ( p_input->p_fmt->i_cat == VIDEO_ES ) )
@@ -1240,7 +1240,7 @@ static bool MuxStreams(sout_mux_t *p_mux )
                 /* We need more data */
                 return true;
             }
-            else if( block_FifoCount( p_input->p_fifo ) <= 0 )
+            else if( vlc_fifo_GetCount( p_input->p_fifo ) <= 0 )
             {
                 /* spu, only one packet is needed */
                 continue;
@@ -1303,7 +1303,7 @@ static bool MuxStreams(sout_mux_t *p_mux )
             for (int j = 0; j < p_mux->i_nb_inputs; j++ )
             {
                 if( p_mux->pp_inputs[j] != p_input &&
-                    block_FifoCount( p_mux->pp_inputs[j]->p_fifo) > 0 )
+                    vlc_fifo_GetCount( p_mux->pp_inputs[j]->p_fifo) > 0 )
                 {
                     block_t *p_block = block_FifoShow( p_mux->pp_inputs[j]->p_fifo );
                     if( p_block->i_dts > VLC_TICK_INVALID &&

@@ -380,7 +380,7 @@ int ScanLuaCallback( vlc_object_t *p_this, const char *psz_filename,
                 {
                     /* Key is at index -2 and value at index -1. Discard key */
                     const char *psz_cap = luaL_checkstring( L, -1 );
-                    bool b_ok = false;
+                    bool b_ok2 = false;
                     /* Find this capability's flag */
                     for( size_t i = 0; i < sizeof(caps)/sizeof(caps[0]); i++ )
                     {
@@ -388,11 +388,11 @@ int ScanLuaCallback( vlc_object_t *p_this, const char *psz_filename,
                         {
                             /* Flag it! */
                             p_ext->p_sys->i_capabilities |= 1 << i;
-                            b_ok = true;
+                            b_ok2 = true;
                             break;
                         }
                     }
-                    if( !b_ok )
+                    if( !b_ok2 )
                     {
                         msg_Warn( p_mgr, "Extension capability '%s' unknown in"
                                   " script %s", psz_cap, psz_script );
@@ -624,21 +624,21 @@ static int Control( extensions_manager_t *p_mgr, int i_control, va_list args )
         }
         case EXTENSION_PLAYING_CHANGED:
         {
-            extension_t *p_ext;
-            p_ext = ( extension_t* ) va_arg( args, extension_t* );
-            assert( p_ext->psz_name != NULL );
+            extension_t *p_ext2;
+            p_ext2 = ( extension_t* ) va_arg( args, extension_t* );
+            assert( p_ext2->psz_name != NULL );
             i = ( int ) va_arg( args, int );
-            if( p_ext->p_sys->i_capabilities & EXT_PLAYING_LISTENER )
+            if( p_ext2->p_sys->i_capabilities & EXT_PLAYING_LISTENER )
             {
-                PushCommand( p_ext, CMD_PLAYING_CHANGED, i );
+                PushCommand( p_ext2, CMD_PLAYING_CHANGED, i );
             }
             break;
         }
         case EXTENSION_META_CHANGED:
         {
-            extension_t *p_ext;
-            p_ext = ( extension_t* ) va_arg( args, extension_t* );
-            PushCommand( p_ext, CMD_UPDATE_META );
+            extension_t *p_ext2;
+            p_ext2 = ( extension_t* ) va_arg( args, extension_t* );
+            PushCommand( p_ext2, CMD_UPDATE_META );
             break;
         }
         default:

@@ -769,11 +769,11 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     /* Look for any output buffers in the queue */
     if( gst_atomic_queue_peek( p_sys->p_que ) )
     {
-        GstBuffer *p_buf = GST_BUFFER_CAST(
+        GstBuffer *p_out_buf = GST_BUFFER_CAST(
                 gst_atomic_queue_pop( p_sys->p_que ));
         GstMemory *p_mem;
 
-        if(( p_mem = gst_buffer_peek_memory( p_buf, 0 )) &&
+        if(( p_mem = gst_buffer_peek_memory( p_out_buf, 0 )) &&
             GST_IS_VLC_PICTURE_PLANE_ALLOCATOR( p_mem->allocator ))
         {
             p_pic = picture_Hold(( (GstVlcPicturePlane*) p_mem )->p_pic );
@@ -790,10 +790,10 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
                 goto done;
 
             if( unlikely( !gst_video_frame_map( &frame,
-                            &p_sys->vinfo, p_buf, GST_MAP_READ ) ) )
+                            &p_sys->vinfo, p_out_buf, GST_MAP_READ ) ) )
             {
                 msg_Err( p_dec, "failed to map gst video frame" );
-                gst_buffer_unref( p_buf );
+                gst_buffer_unref( p_out_buf );
                 return VLCDEC_ECRITICAL;
             }
 
@@ -801,13 +801,13 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
             gst_video_frame_unmap( &frame );
         }
 
-        if( likely( GST_BUFFER_PTS_IS_VALID( p_buf ) ) )
+        if( likely( GST_BUFFER_PTS_IS_VALID( p_out_buf ) ) )
             p_pic->date = gst_util_uint64_scale(
-                GST_BUFFER_PTS( p_buf ), GST_MSECOND, GST_SECOND );
+                GST_BUFFER_PTS( p_out_buf ), GST_MSECOND, GST_SECOND );
         else
             msg_Warn( p_dec, "Gst Buffer has no timestamp" );
 
-        gst_buffer_unref( p_buf );
+        gst_buffer_unref( p_out_buf );
     }
 
 done:

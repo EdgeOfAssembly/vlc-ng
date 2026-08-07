@@ -282,7 +282,7 @@ static int Mux( sout_mux_t *p_mux )
     p_sys->b_header = false;
 
     p_input = p_mux->pp_inputs[0];
-    while( block_FifoCount( p_input->p_fifo ) > 0 )
+    while( vlc_fifo_GetCount( p_input->p_fifo ) > 0 )
     {
         block_t *p_block = block_FifoGet( p_input->p_fifo );
         p_sys->i_data += p_block->i_buffer;

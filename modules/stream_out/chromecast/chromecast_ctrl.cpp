@@ -769,7 +769,7 @@ bool intf_sys_t::processReceiverMessage( const castchannel::CastMessage& msg )
             // We might receive a RECEIVER_STATUS while being connected, when pinging/asking the status
             if ( p_app == NULL )
                 break;
-            // else: fall through and warn
+            /* fall through */
         default:
             msg_Warn( m_module, "Unexpected RECEIVER_STATUS with state %s. "
                       "Checking media status",

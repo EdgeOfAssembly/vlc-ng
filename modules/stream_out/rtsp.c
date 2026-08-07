@@ -1149,37 +1149,37 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
 
         case HTTPD_MSG_TEARDOWN:
         {
-            rtsp_session_t *ses;
+            rtsp_session_t *ses2;
 
             answer->i_status = 200;
 
             psz_session = httpd_MsgGet( query, "Session" );
 
             vlc_mutex_lock( &rtsp->lock );
-            ses = RtspClientGet( rtsp, psz_session );
-            if( ses != NULL )
+            ses2 = RtspClientGet( rtsp, psz_session );
+            if( ses2 != NULL )
             {
                 if( id == NULL ) /* Delete the entire session */
                 {
-                    RtspClientDel( rtsp, ses );
+                    RtspClientDel( rtsp, ses2 );
                     if (vod)
                         vod_stop(rtsp->vod_media, psz_session);
                     RtspUpdateTimer(rtsp);
                 }
                 else /* Delete one track from the session */
                 {
-                    for( int i = 0; i < ses->trackc; i++ )
+                    for( int i = 0; i < ses2->trackc; i++ )
                     {
-                        if( ses->trackv[i].id == id )
+                        if( ses2->trackv[i].id == id )
                         {
-                            RtspTrackClose( &ses->trackv[i] );
+                            RtspTrackClose( &ses2->trackv[i] );
                             /* Keep VoD tracks whose instance is still
                              * running */
-                            if (!(vod && ses->trackv[i].sout_id != NULL))
-                                TAB_ERASE(ses->trackc, ses->trackv, i);
+                            if (!(vod && ses2->trackv[i].sout_id != NULL))
+                                TAB_ERASE(ses2->trackc, ses2->trackv, i);
                         }
                     }
-                    RtspClientAlive(ses);
+                    RtspClientAlive(ses2);
                 }
             }
             vlc_mutex_unlock( &rtsp->lock );

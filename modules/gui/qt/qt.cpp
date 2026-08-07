@@ -824,7 +824,7 @@ static int WindowOpen( vout_window_t *p_wnd, const vout_window_cfg_t *cfg )
     msg_Dbg( p_wnd, "requesting video window..." );
 
 #ifdef QT5_HAS_X11
-    Window xid;
+    Window xid = 0;
 
     if (QX11Info::isPlatformX11())
     {

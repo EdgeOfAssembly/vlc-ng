@@ -1,0 +1,26 @@
+--- a/modules/codec/telx.c
++++ b/modules/codec/telx.c
+@@ -555,6 +555,7 @@
+             {
+                 strncpy( p_sys->ppsz_lines[row], psz_line,
+                          sizeof(p_sys->ppsz_lines[row]) - 1);
++                p_sys->ppsz_lines[row][sizeof(p_sys->ppsz_lines[row]) - 1] = '\0';
+             }
+             b_update = true;
+ 
+@@ -588,6 +589,7 @@
+             {
+                 strncpy( p_sys->ppsz_lines[row], t,
+                          sizeof(p_sys->ppsz_lines[row]) - 1 );
++                p_sys->ppsz_lines[row][sizeof(p_sys->ppsz_lines[row]) - 1] = '\0';
+                 b_update = true;
+             }
+ 
+@@ -634,6 +636,7 @@
+             {
+                 strncpy( p_sys->ppsz_lines[0], psz_line,
+                          sizeof(p_sys->ppsz_lines[0]) - 1 );
++                p_sys->ppsz_lines[0][sizeof(p_sys->ppsz_lines[0]) - 1] = '\0';
+                 /* b_update = true; */
+             }
+         }

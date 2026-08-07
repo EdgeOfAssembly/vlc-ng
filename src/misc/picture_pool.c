@@ -160,6 +160,7 @@ picture_pool_t *picture_pool_NewFromFormat(const video_format_t *fmt,
     picture_t *picture[count ? count : 1];
     unsigned i;
 
+    memset(picture, 0, sizeof(picture));
     for (i = 0; i < count; i++) {
         picture[i] = picture_NewFromFormat(fmt);
         if (picture[i] == NULL)
@@ -183,6 +184,7 @@ picture_pool_t *picture_pool_Reserve(picture_pool_t *master, unsigned count)
     picture_t *picture[count ? count : 1];
     unsigned i;
 
+    memset(picture, 0, sizeof(picture));
     for (i = 0; i < count; i++) {
         picture[i] = picture_pool_Get(master);
         if (picture[i] == NULL)

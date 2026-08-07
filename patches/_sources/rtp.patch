@@ -1,0 +1,11 @@
+--- /tmp/vlc-3.0.23.org/modules/stream_out/rtp.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/stream_out/rtp.c	2026-07-03 04:42:28.385131783 +0300
+@@ -1565,7 +1565,7 @@
+ 
+     uint64_t i_ts_init;
+     /* As per RFC 2326, session identifiers are at least 8 bytes long */
+-    strncpy((char *)&i_ts_init, psz_vod_session, sizeof(uint64_t));
++    memcpy(&i_ts_init, psz_vod_session, sizeof(uint64_t));
+     i_ts_init ^= (uintptr_t)p_media;
+     /* Limit the timestamp to 48 bits, this is enough and allows us
+      * to stay away from overflows */

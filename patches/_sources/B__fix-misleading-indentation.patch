@@ -1,0 +1,12 @@
+--- /tmp/vlc-3.0.23.org/modules/packetizer/av1.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/packetizer/av1.c	2026-07-03 04:41:33.097129815 +0300
+@@ -91,7 +91,9 @@
+ {\
+     block_ChainLastAppend(&p_sys->name.pp_chain_last, b);\
+     if(p_sys->tu.dts == VLC_TICK_INVALID)\
++    {\
+         p_sys->tu.dts = b->i_dts; p_sys->tu.pts = b->i_pts;\
++    }\
+ }
+ 
+ static void UpdateDecoderFormat(decoder_t *p_dec)

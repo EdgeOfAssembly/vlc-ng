@@ -1,0 +1,183 @@
+--- /tmp/vlc-3.0.23.org/src/stream_output/stream_output.c	2025-12-23 12:49:21.000000000 +0200
++++ /tmp/vlc-3.0.23/src/stream_output/stream_output.c	2026-07-03 04:23:08.485090494 +0300
+@@ -490,7 +490,7 @@
+     int i_index;
+ 
+     if( p_mux->b_waiting_stream
+-     && block_FifoCount( p_input->p_fifo ) > 0 )
++     && vlc_fifo_GetCount( p_input->p_fifo ) > 0 )
+     {
+         /* We stop waiting, and call the muxer for taking care of the data
+          * before we remove this es */
+@@ -571,7 +571,7 @@
+         sout_input_t *p_input = p_mux->pp_inputs[i];
+         block_t *p_data;
+ 
+-        if( block_FifoCount( p_input->p_fifo ) < i_blocks )
++        if( vlc_fifo_GetCount( p_input->p_fifo ) < i_blocks )
+         {
+             if( (!p_mux->b_add_stream_any_time) &&
+                 (p_input->p_fmt->i_cat != SPU_ES ) )
+--- /tmp/vlc-3.0.23.org/modules/access_output/udp.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/access_output/udp.c	2026-07-03 04:23:08.485090494 +0300
+@@ -357,13 +357,13 @@
+     sout_access_out_sys_t *p_sys = p_access->p_sys;
+     block_t *p_buffer;
+ 
+-    while ( block_FifoCount( p_sys->p_empty_blocks ) > MAX_EMPTY_BLOCKS )
++    while ( vlc_fifo_GetCount( p_sys->p_empty_blocks ) > MAX_EMPTY_BLOCKS )
+     {
+         p_buffer = block_FifoGet( p_sys->p_empty_blocks );
+         block_Release( p_buffer );
+     }
+ 
+-    if( block_FifoCount( p_sys->p_empty_blocks ) == 0 )
++    if( vlc_fifo_GetCount( p_sys->p_empty_blocks ) == 0 )
+     {
+         p_buffer = block_Alloc( p_sys->i_mtu );
+     }
+--- /tmp/vlc-3.0.23.org/modules/misc/rtsp.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/misc/rtsp.c	2026-07-03 04:23:08.487090494 +0300
+@@ -323,7 +323,7 @@
+     CommandPush( p_vod, RTSP_CMD_TYPE_NONE, NULL, NULL, 0, 0.0, NULL );
+     vlc_join( p_sys->thread, NULL );
+ 
+-    while( block_FifoCount( p_sys->p_fifo_cmd ) > 0 )
++    while( vlc_fifo_GetCount( p_sys->p_fifo_cmd ) > 0 )
+     {
+         rtsp_cmd_t cmd;
+         block_t *p_block_cmd = block_FifoGet( p_sys->p_fifo_cmd );
+--- /tmp/vlc-3.0.23.org/modules/mux/dummy.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/mux/dummy.c	2026-07-03 04:23:08.487090494 +0300
+@@ -164,7 +164,7 @@
+         }
+ 
+         p_fifo = p_mux->pp_inputs[i]->p_fifo;
+-        i_count = block_FifoCount( p_fifo );
++        i_count = vlc_fifo_GetCount( p_fifo );
+         while( i_count > 0 )
+         {
+             block_t *p_data = block_FifoGet( p_fifo );
+--- /tmp/vlc-3.0.23.org/modules/mux/avi.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/mux/avi.c	2026-07-03 04:23:08.489090494 +0300
+@@ -513,14 +513,14 @@
+         p_stream = &p_sys->stream[i_stream];
+ 
+         p_fifo = p_mux->pp_inputs[i]->p_fifo;
+-        i_count = block_FifoCount(  p_fifo );
++        i_count = vlc_fifo_GetCount(  p_fifo );
+         while( i_count > 1 )
+         {
+             avi_idx1_entry_t *p_idx;
+             block_t *p_data;
+ 
+             p_data = block_FifoGet( p_fifo );
+-            if( block_FifoCount( p_fifo ) > 0 )
++            if( vlc_fifo_GetCount( p_fifo ) > 0 )
+             {
+                 block_t *p_next = block_FifoShow( p_fifo );
+                 p_data->i_length = p_next->i_dts - p_data->i_dts;
+--- /tmp/vlc-3.0.23.org/modules/mux/mp4/mp4.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/mux/mp4/mp4.c	2026-07-03 04:23:08.491090494 +0300
+@@ -647,7 +647,7 @@
+ 
+         if (p_stream->mux.fmt.i_cat != SPU_ES) {
+             /* Fix length of the sample */
+-            if (block_FifoCount(p_input->p_fifo) > 0) {
++            if (vlc_fifo_GetCount(p_input->p_fifo) > 0) {
+                 block_t *p_next = block_FifoShow(p_input->p_fifo);
+                 if ( p_next->i_flags & BLOCK_FLAG_DISCONTINUITY )
+                 { /* we have no way to know real length except by decoding */
+--- /tmp/vlc-3.0.23.org/modules/mux/mpjpeg.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/mux/mpjpeg.c	2026-07-03 04:23:08.491090494 +0300
+@@ -150,7 +150,7 @@
+ 
+     p_fifo = p_mux->pp_inputs[0]->p_fifo;
+ 
+-    while( block_FifoCount( p_fifo ) > 0 )
++    while( vlc_fifo_GetCount( p_fifo ) > 0 )
+     {
+         static const char psz_hfmt[] = "\r\n"
+             "--"BOUNDARY"\r\n"
+--- /tmp/vlc-3.0.23.org/modules/mux/wav.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/mux/wav.c	2026-07-03 04:23:08.491090494 +0300
+@@ -282,7 +282,7 @@
+     p_sys->b_header = false;
+ 
+     p_input = p_mux->pp_inputs[0];
+-    while( block_FifoCount( p_input->p_fifo ) > 0 )
++    while( vlc_fifo_GetCount( p_input->p_fifo ) > 0 )
+     {
+         block_t *p_block = block_FifoGet( p_input->p_fifo );
+         p_sys->i_data += p_block->i_buffer;
+--- /tmp/vlc-3.0.23.org/modules/mux/ogg.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/mux/ogg.c	2026-07-03 04:23:08.493090494 +0300
+@@ -567,7 +567,7 @@
+     {
+         if( !p_stream->b_new )
+         {
+-            while( block_FifoCount( p_input->p_fifo ) )
++            while( vlc_fifo_GetCount( p_input->p_fifo ) )
+                 MuxBlock( p_mux, p_input );
+         }
+ 
+--- /tmp/vlc-3.0.23.org/modules/mux/mpeg/ts.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/mux/mpeg/ts.c	2026-07-03 04:23:08.495090495 +0300
+@@ -1068,7 +1068,7 @@
+     sout_input_sys_t *p_stream = (sout_input_sys_t*) p_input->p_sys;
+ 
+     if( p_input->p_fmt->i_cat != SPU_ES &&
+-        block_FifoCount( p_input->p_fifo ) > 0 )
++        vlc_fifo_GetCount( p_input->p_fifo ) > 0 )
+     {
+         block_t *p_next = block_FifoShow( p_input->p_fifo );
+         vlc_tick_t i_diff = p_next->i_dts - p_data->i_dts;
+@@ -1232,7 +1232,7 @@
+             continue;
+ 
+         /* Need more data */
+-        if( block_FifoCount( p_input->p_fifo ) <= 1 )
++        if( vlc_fifo_GetCount( p_input->p_fifo ) <= 1 )
+         {
+             if( ( p_input->p_fmt->i_cat == AUDIO_ES ) ||
+                 ( p_input->p_fmt->i_cat == VIDEO_ES ) )
+@@ -1240,7 +1240,7 @@
+                 /* We need more data */
+                 return true;
+             }
+-            else if( block_FifoCount( p_input->p_fifo ) <= 0 )
++            else if( vlc_fifo_GetCount( p_input->p_fifo ) <= 0 )
+             {
+                 /* spu, only one packet is needed */
+                 continue;
+@@ -1303,7 +1303,7 @@
+             for (int j = 0; j < p_mux->i_nb_inputs; j++ )
+             {
+                 if( p_mux->pp_inputs[j] != p_input &&
+-                    block_FifoCount( p_mux->pp_inputs[j]->p_fifo) > 0 )
++                    vlc_fifo_GetCount( p_mux->pp_inputs[j]->p_fifo) > 0 )
+                 {
+                     block_t *p_block = block_FifoShow( p_mux->pp_inputs[j]->p_fifo );
+                     if( p_block->i_dts > VLC_TICK_INVALID &&
+--- /tmp/vlc-3.0.23.org/modules/stream_out/vod.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/stream_out/vod.c	2026-07-03 04:23:08.495090495 +0300
+@@ -185,7 +185,7 @@
+     vlc_cancel( p_sys->thread );
+     vlc_join( p_sys->thread, NULL );
+ 
+-    while( block_FifoCount( p_sys->p_fifo_cmd ) > 0 )
++    while( vlc_fifo_GetCount( p_sys->p_fifo_cmd ) > 0 )
+     {
+         rtsp_cmd_t cmd;
+         block_t *p_block_cmd = block_FifoGet( p_sys->p_fifo_cmd );
+--- /tmp/vlc-3.0.23.org/modules/codec/shine.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/codec/shine.c	2026-07-03 04:23:32.654091355 +0300
+@@ -215,7 +215,7 @@
+ 
+ buffered:
+     /* and finally get a block back */
+-    return block_FifoCount( p_sys->p_fifo ) > 0 ? block_FifoGet( p_sys->p_fifo ) : NULL;
++    return vlc_fifo_GetCount( p_sys->p_fifo ) > 0 ? block_FifoGet( p_sys->p_fifo ) : NULL;
+ }
+ 
+ static block_t *EncodeFrame( encoder_t *p_enc, block_t *p_block )

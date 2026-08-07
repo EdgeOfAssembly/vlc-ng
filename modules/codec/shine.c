@@ -215,7 +215,7 @@ static block_t *GetPCM( encoder_t *p_enc, block_t *p_block )
 
 buffered:
     /* and finally get a block back */
-    return block_FifoCount( p_sys->p_fifo ) > 0 ? block_FifoGet( p_sys->p_fifo ) : NULL;
+    return vlc_fifo_GetCount( p_sys->p_fifo ) > 0 ? block_FifoGet( p_sys->p_fifo ) : NULL;
 }
 
 static block_t *EncodeFrame( encoder_t *p_enc, block_t *p_block )

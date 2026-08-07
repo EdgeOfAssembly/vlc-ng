@@ -555,6 +555,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
             {
                 strncpy( p_sys->ppsz_lines[row], psz_line,
                          sizeof(p_sys->ppsz_lines[row]) - 1);
+                p_sys->ppsz_lines[row][sizeof(p_sys->ppsz_lines[row]) - 1] = '\0';
             }
             b_update = true;
 
@@ -588,6 +589,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
             {
                 strncpy( p_sys->ppsz_lines[row], t,
                          sizeof(p_sys->ppsz_lines[row]) - 1 );
+                p_sys->ppsz_lines[row][sizeof(p_sys->ppsz_lines[row]) - 1] = '\0';
                 b_update = true;
             }
 
@@ -634,6 +636,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
             {
                 strncpy( p_sys->ppsz_lines[0], psz_line,
                          sizeof(p_sys->ppsz_lines[0]) - 1 );
+                p_sys->ppsz_lines[0][sizeof(p_sys->ppsz_lines[0]) - 1] = '\0';
                 /* b_update = true; */
             }
         }

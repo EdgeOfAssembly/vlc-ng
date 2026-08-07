@@ -1,0 +1,26 @@
+--- /tmp/vlc-3.0.23.org/modules/codec/telx.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/codec/telx.c	2026-07-03 04:42:29.000131805 +0300
+@@ -555,6 +555,7 @@
+             {
+                 strncpy( p_sys->ppsz_lines[row], psz_line,
+                          sizeof(p_sys->ppsz_lines[row]) - 1);
++                p_sys->ppsz_lines[row][sizeof(p_sys->ppsz_lines[row]) - 1] = '\0';
+             }
+             b_update = true;
+ 
+@@ -588,6 +589,7 @@
+             {
+                 strncpy( p_sys->ppsz_lines[row], t,
+                          sizeof(p_sys->ppsz_lines[row]) - 1 );
++                p_sys->ppsz_lines[row][sizeof(p_sys->ppsz_lines[row]) - 1] = '\0';
+                 b_update = true;
+             }
+ 
+@@ -634,6 +636,7 @@
+             {
+                 strncpy( p_sys->ppsz_lines[0], psz_line,
+                          sizeof(p_sys->ppsz_lines[0]) - 1 );
++                p_sys->ppsz_lines[0][sizeof(p_sys->ppsz_lines[0]) - 1] = '\0';
+                 /* b_update = true; */
+             }
+         }

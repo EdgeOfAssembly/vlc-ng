@@ -90,10 +90,10 @@ static inline void *realloc_down( void *ptr, size_t size )
 
 #define TAB_REMOVE( count, tab, p )             \
   do {                                          \
-        int i_index;                            \
-        TAB_FIND( count, tab, p, i_index );     \
-        if( i_index >= 0 )                      \
-            TAB_ERASE( count, tab, i_index );   \
+        int i_index_;                           \
+        TAB_FIND( count, tab, p, i_index_ );    \
+        if( i_index_ >= 0 )                     \
+            TAB_ERASE( count, tab, i_index_ );  \
   } while(0)
 
 #define TAB_INSERT_CAST( cast, count, tab, p, index ) do { \
@@ -226,10 +226,10 @@ static inline void *realloc_down( void *ptr, size_t size )
     BSEARCH( (array).p_elems, (array).i_size, elem, zetype, key, answer)
 
 #define FOREACH_ARRAY( item, array ) { \
-    int fe_idx; \
-    for( fe_idx = 0 ; fe_idx < (array).i_size ; fe_idx++ ) \
+    int fe_idx_; \
+    for( fe_idx_ = 0 ; fe_idx_ < (array).i_size ; fe_idx_++ ) \
     { \
-        item = (array).p_elems[fe_idx];
+        item = (array).p_elems[fe_idx_];
 
 #define FOREACH_END() } }
 

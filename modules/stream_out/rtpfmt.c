@@ -1870,7 +1870,7 @@ static int rtp_packetize_jpeg( sout_stream_id_sys_t *id, block_t *in )
     const uint8_t *qtables = NULL;
     int nb_qtables = 0;
     int off = 0; // fragment offset in frame
-    int y_sampling_factor;
+    int y_sampling_factor = 0;
     // type is set by pixel format (determined by y_sampling_factor):
     // 0 for yuvj422p
     // 1 for yuvj420p

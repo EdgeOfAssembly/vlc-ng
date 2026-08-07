@@ -1,0 +1,226 @@
+--- /tmp/vlc-3.0.23.org/src/playlist/preparser.c	2025-12-23 12:49:21.000000000 +0200
++++ /tmp/vlc-3.0.23/src/playlist/preparser.c	2026-07-03 04:23:57.758092248 +0300
+@@ -170,6 +170,7 @@
+         case ITEM_TYPE_PLAYLIST:
+             if( !b_net || i_options & META_REQUEST_OPTION_SCOPE_NETWORK )
+                 break;
++            /* fall through */
+         default:
+             input_item_SignalPreparseEnded( item, ITEM_PREPARSE_SKIPPED );
+             return;
+--- /tmp/vlc-3.0.23.org/modules/access/linsys/linsys_sdi.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/access/linsys/linsys_sdi.c	2026-07-03 04:23:58.686092281 +0300
+@@ -1435,6 +1435,7 @@
+             break;
+         p_sys->i_state = STATE_STARTSYNC;
+         p_sys->i_last_state_change = mdate();
++        /* fall through */
+ 
+     case STATE_STARTSYNC:
+         p_parser = FindReferenceCode( FIELD_1_VBLANK_EAV, p_parser, p_end );
+@@ -1443,6 +1444,7 @@
+         p_sys->i_anc_size = 0;
+         p_sys->i_state = STATE_ANCSYNC;
+         p_sys->i_last_state_change = mdate();
++        /* fall through */
+ 
+     case STATE_ANCSYNC:
+         p_parser = CountReference( &p_sys->i_anc_size,
+@@ -1452,6 +1454,7 @@
+         p_sys->i_active_size = 0;
+         p_sys->i_state = STATE_LINESYNC;
+         p_sys->i_last_state_change = mdate();
++        /* fall through */
+ 
+     case STATE_LINESYNC:
+         p_parser = CountReference( &p_sys->i_active_size,
+@@ -1461,6 +1464,7 @@
+         p_sys->i_picture_size = p_sys->i_anc_size + p_sys->i_active_size;
+         p_sys->i_state = STATE_ACTIVESYNC;
+         p_sys->i_last_state_change = mdate();
++        /* fall through */
+ 
+     case STATE_ACTIVESYNC:
+         p_parser = CountReference( &p_sys->i_picture_size,
+@@ -1471,6 +1475,7 @@
+                              / (p_sys->i_anc_size + p_sys->i_active_size);
+         p_sys->i_state = STATE_VBLANKSYNC;
+         p_sys->i_last_state_change = mdate();
++        /* fall through */
+ 
+     case STATE_VBLANKSYNC:
+         p_parser = CountReference( &p_sys->i_picture_size,
+@@ -1479,6 +1484,7 @@
+             break;
+         p_sys->i_state = STATE_PICSYNC;
+         p_sys->i_last_state_change = mdate();
++        /* fall through */
+ 
+     case STATE_PICSYNC:
+         p_parser = CountReference( &p_sys->i_picture_size,
+--- /tmp/vlc-3.0.23.org/modules/access/vcd/cdrom.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/access/vcd/cdrom.c	2026-07-03 04:23:57.765092248 +0300
+@@ -868,6 +868,7 @@
+                 msg_Dbg( p_this, "the cue file says the data file is %s", type );
+                 if( strcasecmp( type, "BINARY" ) )
+                     goto error; /* Error if not binary, otherwise treat as case 1 */
++                /* fall through */
+             case 1:
+                 if( p_vcddev->i_vcdimage_handle == -1 )
+                 {
+--- /tmp/vlc-3.0.23.org/modules/access/smb.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/access/smb.c	2026-07-03 04:23:57.766092248 +0300
+@@ -372,6 +372,7 @@
+             psz_server = p_sys->url.psz_host;
+             psz_path = NULL;
+             psz_name = NULL;
++            /* fall through */
+         case SMBC_FILE_SHARE:
+         case SMBC_DIR:
+             i_type = ITEM_TYPE_DIRECTORY;
+--- /tmp/vlc-3.0.23.org/modules/codec/zvbi.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/codec/zvbi.c	2026-07-03 04:23:57.807092250 +0300
+@@ -672,6 +672,7 @@
+             case VBI_SEMI_TRANSPARENT:
+                 if( b_opaque )
+                     break;
++                /* fall through */
+             /* Full text transparency. only foreground color is show */
+             case VBI_TRANSPARENT_FULL:
+                 if( (*p_pixel) == (0xff000000 | p_page->color_map[background] ) )
+--- /tmp/vlc-3.0.23.org/modules/codec/speex.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/codec/speex.c	2026-07-03 04:23:57.806092250 +0300
+@@ -834,6 +834,7 @@
+         {
+             case -2:
+                 msg_Err( p_dec, "decoding error: corrupted stream?" );
++                /* fall through */
+             case -1: /* End of stream */
+                 return NULL;
+         }
+--- /tmp/vlc-3.0.23.org/modules/demux/ty.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/demux/ty.c	2026-07-03 04:23:57.804092250 +0300
+@@ -487,7 +487,7 @@
+ 
+         default:
+             msg_Dbg(p_demux, "Invalid record type 0x%02x", p_rec->rec_type );
+-
++            /* fall through */
+         case 0x03: /* tivo data services */
+         case 0x05: /* unknown, but seen regularly */
+             if( p_block_in )
+--- /tmp/vlc-3.0.23.org/modules/demux/mpeg/es.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/demux/mpeg/es.c	2026-07-03 04:23:57.801092250 +0300
+@@ -449,6 +449,7 @@
+             }
+             /* FIXME TODO: implement a high precision seek (with mp3 parsing)
+              * needed for multi-input */
++            /* fall through */
+         }
+         default:
+             i_ret = demux_vaControlHelper( p_demux->s, p_sys->i_stream_offset, -1,
+--- /tmp/vlc-3.0.23.org/modules/demux/mkv/matroska_segment.cpp	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/demux/mkv/matroska_segment.cpp	2026-07-03 04:23:58.194092264 +0300
+@@ -995,8 +995,8 @@
+ 
+             switch( it->second->fmt.i_cat )
+             {
+-                case VIDEO_ES: ++track_score;
+-                case AUDIO_ES: ++track_score;
++                case VIDEO_ES: ++track_score; /* fall through */
++                case AUDIO_ES: ++track_score; /* fall through */
+                 case   SPU_ES: ++track_score;
+                 default:
+                   if( score < track_score )
+@@ -1446,6 +1446,7 @@
+ 
+                         if ( i_level == 2 )
+                             break;
++                        /* fall through */
+ 
+                         ep.Unkeep();
+                         pp_simpleblock = NULL;
+--- /tmp/vlc-3.0.23.org/modules/gui/ncurses.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/gui/ncurses.c	2026-07-03 04:23:58.197092264 +0300
+@@ -1082,7 +1082,7 @@
+         case PAUSE_S:
+             mvnprintw(y++, 0, COLS, _(input_state[val.i_int]),
+                         repeat, random, loop);
+-
++            /* fall through */
+         default:
+             val.i_int = var_GetInteger(p_input, "time");
+             secstotimestr(buf1, val.i_int / CLOCK_FREQ);
+@@ -1561,7 +1561,7 @@
+     case 0x1b:  /* ESC */
+         if (getch() != ERR)
+             return;
+-
++        /* fall through */
+     case 'q':
+     case 'Q':
+     case KEY_EXIT:
+--- /tmp/vlc-3.0.23.org/modules/gui/qt/components/controller.cpp	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/gui/qt/components/controller.cpp	2026-07-03 04:23:57.792092249 +0300
+@@ -387,6 +387,7 @@
+         break;
+     case VOLUME_SPECIAL:
+         b_special = true;
++        /* fall through */
+     case VOLUME:
+         {
+             SoundWidget *snd = new SoundWidget( this, p_intf, b_shiny, b_special );
+--- /tmp/vlc-3.0.23.org/modules/services_discovery/upnp.cpp	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/services_discovery/upnp.cpp	2026-07-03 04:23:57.790092249 +0300
+@@ -1056,6 +1056,7 @@
+                     p_item = holder.createNewItem(p_resource);
+                     break;
+                 }
++                /* fall through */
+             case ItemDescriptionHolder::VIDEO:
+             case ItemDescriptionHolder::AUDIO:
+                 holder.setArtworkURL(p_resource);
+--- /tmp/vlc-3.0.23.org/modules/stream_out/chromecast/chromecast_ctrl.cpp	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/stream_out/chromecast/chromecast_ctrl.cpp	2026-07-03 04:23:57.787092249 +0300
+@@ -769,7 +769,7 @@
+             // We might receive a RECEIVER_STATUS while being connected, when pinging/asking the status
+             if ( p_app == NULL )
+                 break;
+-            // else: fall through and warn
++            /* fall through */
+         default:
+             msg_Warn( m_module, "Unexpected RECEIVER_STATUS with state %s. "
+                       "Checking media status",
+--- /tmp/vlc-3.0.23.org/modules/stream_extractor/archive.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/stream_extractor/archive.c	2026-07-03 04:23:57.784092249 +0300
+@@ -364,7 +364,7 @@
+         case ARCHIVE_WARN:
+             msg_Warn( p_sys->p_obj,
+               "libarchive: %s", archive_error_string( p_arc ) );
+-
++            /* fall through */
+         case ARCHIVE_EOF:
+         case ARCHIVE_FATAL:
+         case ARCHIVE_RETRY:
+--- /tmp/vlc-3.0.23.org/modules/video_filter/ripple.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/video_filter/ripple.c	2026-07-03 04:23:57.783092249 +0300
+@@ -158,7 +158,7 @@
+             CASE_PACKED_YUV_422
+                 // Quick hack to fix u/v inversion occurring with 2 byte pixel pitch
+                 i_pixel_pitch *= 2;
+-                /* fallthrough */
++                /* fall through */
+             CASE_PLANAR_YUV
+                 black_pixel = ( p_pic->i_planes > 1 && i_index == Y_PLANE ) ? 0x00
+                                                                             : 0x80;
+--- /tmp/vlc-3.0.23.org/modules/video_filter/wave.c	2025-12-23 12:49:20.000000000 +0200
++++ /tmp/vlc-3.0.23/modules/video_filter/wave.c	2026-07-03 04:23:57.782092249 +0300
+@@ -159,7 +159,7 @@
+             CASE_PACKED_YUV_422
+                 // Quick hack to fix u/v inversion occurring with 2 byte pixel pitch
+                 i_pixel_pitch *= 2;
+-                /* fallthrough */
++                /* fall through */
+             CASE_PLANAR_YUV
+                 black_pixel = ( p_pic->i_planes > 1 && i_index == Y_PLANE ) ? 0x00
+                                                                             : 0x80;
