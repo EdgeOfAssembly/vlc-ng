@@ -1,4 +1,5 @@
 /*****************************************************************************
+#include <string.h>
  * video.c: video decoder using the libavcodec library
  *****************************************************************************
  * Copyright (C) 1999-2001 VLC authors and VideoLAN
@@ -159,9 +160,14 @@ static int lavc_GetVideoFormat(decoder_t *dec, video_format_t *restrict fmt,
         if (pix_fmt == AV_PIX_FMT_PAL8 && !dec->fmt_out.video.p_palette)
             fmt->i_chroma = VLC_CODEC_RGB32;
 
-        /* Keep native 4:4:4 chroma for SW path (correct GL colors).
-         * Forced I420+swscale produced green cast. VDPAU skips 4:4:4 → GL. */
-        /* native 4:4:4 retained — see GetFormat log */
+        /* SW 4:4:4 → I420 so forced -V vdpau can import surfaces (NVIDIA has no 444).
+         * Colorspace details set in lavc_CopyPicture to avoid green cast. */
+        if (sys->b_sw_444_to_420 && fmt->i_chroma != VLC_CODEC_RGB32
+         && fmt->i_chroma != VLC_CODEC_RGBP)
+        {
+            msg_Dbg(dec, "4:4:4 SW decode: output I420 for VDPAU-compatible display");
+            fmt->i_chroma = VLC_CODEC_I420;
+        }
 
         avcodec_align_dimensions2(ctx, &width, &height, aligns);
     }
@@ -376,7 +382,9 @@ static int lavc_CopyPicture(decoder_t *dec, picture_t *pic, AVFrame *frame)
         return VLC_EGENERIC;
     }
 
-    /* SW 4:4:4 -> I420 conversion for VDPAU / legacy display paths */
+    /* SW 4:4:4 -> I420 for VDPAU (no 4:4:4 surfaces on NVIDIA).
+     * Use visible pixel size (not pitch) and a tight 8-bit path to avoid
+     * green cast (bad UV) and heap smash (sws writing past plane alloc). */
     if (sys->b_sw_444_to_420
      && pic->format.i_chroma == VLC_CODEC_I420
      && (frame->format == AV_PIX_FMT_YUV444P
@@ -384,58 +392,136 @@ static int lavc_CopyPicture(decoder_t *dec, picture_t *pic, AVFrame *frame)
       || frame->format == AV_PIX_FMT_YUV444P10LE
       || frame->format == AV_PIX_FMT_YUV444P12LE))
     {
-        const int w = frame->width;
-        const int h = frame->height;
-        if (w != (int) pic->format.i_visible_width
-         || h < (int) pic->format.i_visible_height)
+        const int src_w = frame->width;
+        const int src_h = frame->height;
+        /* Pixel size from format; clamp to what picture planes can hold. */
+        int out_w = (int) pic->format.i_visible_width;
+        int out_h = (int) pic->format.i_visible_height;
+        if (out_w > pic->p[0].i_visible_pitch && pic->p[0].i_visible_pitch > 0)
+            out_w = pic->p[0].i_visible_pitch;
+        if (out_h > pic->p[0].i_visible_lines && pic->p[0].i_visible_lines > 0)
+            out_h = pic->p[0].i_visible_lines;
+        if (out_w > pic->p[0].i_pitch)
+            out_w = pic->p[0].i_pitch;
+        if (out_h > pic->p[0].i_lines)
+            out_h = pic->p[0].i_lines;
+
+        if (src_w <= 0 || src_h <= 0 || out_w <= 0 || out_h <= 0
+         || pic->i_planes < 3
+         || frame->data[0] == NULL || frame->data[1] == NULL
+         || frame->data[2] == NULL
+         || frame->linesize[0] <= 0 || frame->linesize[1] <= 0
+         || frame->linesize[2] <= 0)
         {
-            msg_Warn(dec, "dropping frame because the vout changed");
+            msg_Warn(dec, "dropping frame: bad 4:4:4→I420 geometry "
+                     "src=%dx%d out=%dx%d planes=%d y_lines=%d y_pitch=%d",
+                     src_w, src_h, out_w, out_h, pic->i_planes,
+                     pic->p[0].i_lines, pic->p[0].i_pitch);
             return VLC_EGENERIC;
         }
 
-        enum AVPixelFormat dst_fmt = AV_PIX_FMT_YUV420P;
-        const bool first = (sys->p_sws_444 == NULL);
-        sys->p_sws_444 = sws_getCachedContext(sys->p_sws_444,
-                                              w, h, frame->format,
-                                              w, h, dst_fmt,
-                                              SWS_BILINEAR, NULL, NULL, NULL);
-        if (sys->p_sws_444 == NULL)
+        /* Fast path: 8-bit planar 4:4:4 → I420 (Y copy, 2×2 box UV). */
+        if (frame->format == AV_PIX_FMT_YUV444P
+         || frame->format == AV_PIX_FMT_YUVJ444P)
         {
-            msg_Err(dec, "swscale 4:4:4->4:2:0 context failed");
-            return VLC_EGENERIC;
-        }
-        /* Full-range (JPEG/YUVJ) sources need explicit range or chroma goes wrong → green cast */
-        {
-            const int *coef = sws_getCoefficients(SWS_CS_DEFAULT);
-            const int src_full = (frame->format == AV_PIX_FMT_YUVJ444P
-                               || frame->color_range == AVCOL_RANGE_JPEG) ? 1 : 0;
-            sws_setColorspaceDetails(sys->p_sws_444, coef, src_full, coef, 0,
-                                     0, 1 << 16, 1 << 16);
-        }
-        if (first)
-            msg_Info(dec, "SW 4:4:4→4:2:0 conversion active (%dx%d)", w, h);
+            static bool logged;
+            if (!logged)
+            {
+                msg_Info(dec, "SW 4:4:4→I420 (box filter) %dx%d → %dx%d "
+                         "Y pitch/lines=%d/%d U=%d/%d V=%d/%d",
+                         src_w, src_h, out_w, out_h,
+                         pic->p[0].i_pitch, pic->p[0].i_lines,
+                         pic->p[1].i_pitch, pic->p[1].i_lines,
+                         pic->p[2].i_pitch, pic->p[2].i_lines);
+                logged = true;
+            }
 
-        uint8_t *dst_data[4] = {
-            pic->p[0].p_pixels,
-            pic->p[1].p_pixels,
-            pic->p[2].p_pixels,
-            NULL
-        };
-        int dst_linesize[4] = {
-            pic->p[0].i_pitch,
-            pic->p[1].i_pitch,
-            pic->p[2].i_pitch,
-            0
-        };
+            const int copy_w = out_w < src_w ? out_w : src_w;
+            const int copy_h = out_h < src_h ? out_h : src_h;
 
-        if (sws_scale(sys->p_sws_444,
-                      (const uint8_t * const *) frame->data, frame->linesize,
-                      0, h, dst_data, dst_linesize) < 0)
-        {
-            msg_Err(dec, "swscale 4:4:4->4:2:0 failed");
-            return VLC_EGENERIC;
+            /* Y plane */
+            for (int y = 0; y < copy_h; y++)
+            {
+                memcpy(pic->p[0].p_pixels + y * pic->p[0].i_pitch,
+                       frame->data[0] + y * frame->linesize[0],
+                       (size_t) copy_w);
+            }
+            /* Pad remaining Y if out larger than src (should not happen). */
+            for (int y = copy_h; y < out_h; y++)
+                memset(pic->p[0].p_pixels + y * pic->p[0].i_pitch, 0x10,
+                       (size_t) out_w);
+
+            /* U/V: average 2×2 from 4:4:4 */
+            const int cw = (out_w + 1) / 2;
+            const int ch = (out_h + 1) / 2;
+            for (int y = 0; y < ch; y++)
+            {
+                const int y0 = y * 2;
+                const int y1 = (y0 + 1 < copy_h) ? y0 + 1 : y0;
+                uint8_t *du = pic->p[1].p_pixels + y * pic->p[1].i_pitch;
+                uint8_t *dv = pic->p[2].p_pixels + y * pic->p[2].i_pitch;
+                const uint8_t *su0 = frame->data[1] + y0 * frame->linesize[1];
+                const uint8_t *su1 = frame->data[1] + y1 * frame->linesize[1];
+                const uint8_t *sv0 = frame->data[2] + y0 * frame->linesize[2];
+                const uint8_t *sv1 = frame->data[2] + y1 * frame->linesize[2];
+
+                for (int x = 0; x < cw; x++)
+                {
+                    const int x0 = x * 2;
+                    const int x1 = (x0 + 1 < copy_w) ? x0 + 1 : x0;
+                    if (x0 < copy_w)
+                    {
+                        du[x] = (uint8_t) ((su0[x0] + su0[x1] + su1[x0] + su1[x1] + 2) / 4);
+                        dv[x] = (uint8_t) ((sv0[x0] + sv0[x1] + sv1[x0] + sv1[x1] + 2) / 4);
+                    }
+                    else
+                    {
+                        du[x] = 128;
+                        dv[x] = 128;
+                    }
+                }
+            }
+            return VLC_SUCCESS;
         }
-        return VLC_SUCCESS;
+
+        /* 10/12-bit: swscale into visible pixel size (not pitch). */
+        {
+            enum AVPixelFormat dst_fmt = AV_PIX_FMT_YUV420P;
+            const bool first = (sys->p_sws_444 == NULL);
+            sys->p_sws_444 = sws_getCachedContext(sys->p_sws_444,
+                                                  src_w, src_h, frame->format,
+                                                  out_w, out_h, dst_fmt,
+                                                  SWS_BILINEAR, NULL, NULL, NULL);
+            if (sys->p_sws_444 == NULL)
+            {
+                msg_Err(dec, "swscale 4:4:4->4:2:0 context failed");
+                return VLC_EGENERIC;
+            }
+            if (first)
+                msg_Info(dec, "SW 4:4:4→I420 sws %dx%d → %dx%d",
+                         src_w, src_h, out_w, out_h);
+
+            uint8_t *dst_data[4] = {
+                pic->p[0].p_pixels,
+                pic->p[1].p_pixels,
+                pic->p[2].p_pixels,
+                NULL
+            };
+            int dst_linesize[4] = {
+                pic->p[0].i_pitch,
+                pic->p[1].i_pitch,
+                pic->p[2].i_pitch,
+                0
+            };
+            if (sws_scale(sys->p_sws_444,
+                          (const uint8_t * const *) frame->data, frame->linesize,
+                          0, src_h, dst_data, dst_linesize) < 0)
+            {
+                msg_Err(dec, "swscale 4:4:4->4:2:0 failed");
+                return VLC_EGENERIC;
+            }
+            return VLC_SUCCESS;
+        }
     }
 
     if (fourcc != pic->format.i_chroma
@@ -1776,7 +1862,9 @@ static int lavc_GetFrame(struct AVCodecContext *ctx, AVFrame *frame, int flags)
     wait_mt(sys);
     if (sys->p_va == NULL)
     {
-        if (!sys->b_direct_rendering)
+        /* DR maps decoder pix_fmt onto picture_t; cannot DR when we force
+         * I420 output from a 4:4:4 software pix_fmt (causes green/garbage). */
+        if (!sys->b_direct_rendering || sys->b_sw_444_to_420)
         {
             post_mt(sys);
             return avcodec_default_get_buffer2(ctx, frame, flags);
@@ -1850,9 +1938,10 @@ static enum PixelFormat ffmpeg_GetFormat( AVCodecContext *p_context,
         if (sw_desc != NULL && sw_desc->nb_components >= 3 &&
             sw_desc->log2_chroma_w == 0 && sw_desc->log2_chroma_h == 0)
         {
-            msg_Dbg(p_dec, "4:4:4 bitstream: SW decode, no VDPAU/VAAPI HW (native 4:4:4 out for GL)");
+            msg_Dbg(p_dec, "4:4:4 bitstream: SW decode + I420 convert (no HW 444; VDPAU/GL friendly)");
             can_hwaccel = false;
             p_sys->b_sw_444_to_420 = true;
+            p_sys->b_direct_rendering = false; /* must copy via lavc_CopyPicture */
         }
         else
             p_sys->b_sw_444_to_420 = false;
