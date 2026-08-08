@@ -370,7 +370,11 @@ static int lavc_UpdateVideoFormat(decoder_t *dec, AVCodecContext *ctx,
  */
 static int lavc_CopyPicture(decoder_t *dec, picture_t *pic, AVFrame *frame)
 {
+    assert(dec != NULL);
+    assert(pic != NULL);
+    assert(frame != NULL);
     decoder_sys_t *sys = dec->p_sys;
+    assert(sys != NULL);
 
     vlc_fourcc_t fourcc = FindVlcChroma(frame->format);
     if (!fourcc)
@@ -421,6 +425,21 @@ static int lavc_CopyPicture(decoder_t *dec, picture_t *pic, AVFrame *frame)
         }
 
         /* Fast path: 8-bit planar 4:4:4 → I420 (Y copy, 2×2 box UV). */
+        assert(pic != NULL);
+        assert(frame != NULL);
+        assert(pic->p[0].p_pixels != NULL);
+        assert(pic->p[1].p_pixels != NULL);
+        assert(pic->p[2].p_pixels != NULL);
+        assert(frame->data[0] != NULL && frame->data[1] != NULL && frame->data[2] != NULL);
+        assert(out_w > 0 && out_h > 0);
+        assert(out_w <= pic->p[0].i_pitch);
+        assert(out_h <= pic->p[0].i_lines);
+        assert((out_w + 1) / 2 <= pic->p[1].i_pitch);
+        assert((out_h + 1) / 2 <= pic->p[1].i_lines);
+        assert((out_w + 1) / 2 <= pic->p[2].i_pitch);
+        assert((out_h + 1) / 2 <= pic->p[2].i_lines);
+        assert(frame->linesize[0] >= out_w || frame->linesize[0] >= src_w);
+
         if (frame->format == AV_PIX_FMT_YUV444P
          || frame->format == AV_PIX_FMT_YUVJ444P)
         {
@@ -858,7 +877,7 @@ static const enum PixelFormat hwfmts[] =
     AV_PIX_FMT_NONE,
 };
 
-static int ExtractAV1Profile(AVCodecContext *p_context, const es_format_t *fmt_in, decoder_sys_t *p_sys)
+static int __attribute__((unused)) ExtractAV1Profile(AVCodecContext *p_context, const es_format_t *fmt_in, decoder_sys_t *p_sys)
 {
     av1_OBU_sequence_header_t *sequence_hdr = NULL;
     unsigned w, h;
@@ -919,6 +938,7 @@ static int ExtractAV1Profile(AVCodecContext *p_context, const es_format_t *fmt_i
 
 int InitVideoHwDec( vlc_object_t *obj )
 {
+    VLC_UNUSED(obj);
 #ifdef _WIN32
     decoder_t *p_dec = container_of(obj, decoder_t, obj);
 

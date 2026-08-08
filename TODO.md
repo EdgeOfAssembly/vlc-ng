@@ -86,3 +86,23 @@ cvlc -V vdpau /tmp/vlc-ng/samples/duke3d-444.mp4
 # Intel VAAPI
 LIBVA_DRIVER_NAME=iHD cvlc -V gl --avcodec-hw vaapi file-420.mp4
 ```
+
+## Profile helper
+
+```bash
+make -f Makefile.vlc-ng.mk profile          # rebuild -DNDEBUG + baseline report
+make -f Makefile.vlc-ng.mk profile-run      # run only
+# reports: patches/_analysis/profile/
+```
+
+
+## GOAL_PROMPT execution status (2026-08-08)
+
+| Phase | Status |
+|-------|--------|
+| 0 Harness | done (gnome-screenshot + logs; Xmux MCP when session up) |
+| 1 Checkpoint + ASan + asserts | done (`checkpoint/20260808T122355Z-pre-quality`, `/mnt/tmp/vlc-ng-asan`) |
+| 2 Warnings | done for touched `video.c`; rest upstream — `patches/_analysis/WARNINGS.md` |
+| 3 Remaining edges | helpers: `scripts/vaapi-intel-play.sh`; Xvfb pure VDPAU still external |
+| 4 Debug regression | host `-V vdpau` 444 box filter OK; GL+VDPAU 420 OK; Xmux ASan GL shot flaky/black |
+| 5 Profile | baseline-asan recorded; NDEBUG profile via `Makefile.vlc-ng.mk` for real numbers |
