@@ -60,7 +60,7 @@ Branch: `feature/hwaccel-patches` · install: `/tmp/vlc-ng-install` or ASan `/mn
 ### ASan vs day-to-day install
 
 - Full ASan/UBSan tree: `/mnt/tmp/vlc-ng-asan` (debug; slower).
-- Day-to-day prefix: `/tmp/vlc-ng-install` — reconfigure **without** sanitizers and reinstall when a clean non-ASan binary is needed (tree may still be on ASan configure after debug work).
+- Day-to-day prefix: **`/tmp/vlc-ng-install`** — rebuilt **2026-08-08** with `-O2 -DNDEBUG` (no ASan). Smoke: `-V vdpau` duke3d OK.
 
 ## Optional / later
 
@@ -106,3 +106,10 @@ make -f Makefile.vlc-ng.mk profile-run      # run only
 | 3 Remaining edges | helpers: `scripts/vaapi-intel-play.sh`; Xvfb pure VDPAU still external |
 | 4 Debug regression | host `-V vdpau` 444 box filter OK; GL+VDPAU 420 OK; Xmux ASan GL shot flaky/black |
 | 5 Profile | baseline-asan recorded; NDEBUG profile via `Makefile.vlc-ng.mk` for real numbers |
+
+
+## GL acceleration check (Xmux)
+
+- Package: **`x11-apps/mesa-progs`** → `glxgears`, `glxinfo`
+- Under `xmux start … --gl nvidia`: **GTX 1050**, direct rendering Yes, glxgears ~**686 FPS**
+- Evidence: `patches/_analysis/GLX_ACCEL.md`

@@ -25,3 +25,19 @@
 ```bash
 make -f Makefile.vlc-ng.mk profile   # long: reconfigure + install + scripts/profile-playback.sh
 ```
+
+## Baseline (NDEBUG release tree) — 2026-08-08
+
+- Report: `baseline-ndebug-20260808T140630Z.txt`
+- PREFIX: `/tmp/vlc-ng-install` (`-O2 -DNDEBUG`, no ASan)
+- Smoke: pure `-V vdpau` duke3d → `SW 4:4:4→I420 (box filter)` + `using the "vdpau" module`
+
+### gl-vdpau-420 (perf stat, 12s timeout)
+
+| Metric | ASan debug | NDEBUG |
+|--------|------------|--------|
+| page-faults | ~15.8M | **~19k** |
+| instructions/cycle | ~0.2 | **~1.2** |
+| task-clock | ~27s | **~0.8s** |
+
+**Conclusion:** In-tree 4:4:4 box filter is not the bottleneck under NDEBUG; cost is dominated by decode/GPU/driver. No further micro-opt required in vlc-ng for profile stop condition. Re-run `make -f Makefile.vlc-ng.mk profile-run` after future code changes.
