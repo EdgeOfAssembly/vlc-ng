@@ -159,14 +159,9 @@ static int lavc_GetVideoFormat(decoder_t *dec, video_format_t *restrict fmt,
         if (pix_fmt == AV_PIX_FMT_PAL8 && !dec->fmt_out.video.p_palette)
             fmt->i_chroma = VLC_CODEC_RGB32;
 
-        /* H.264 High 4:4:4 cannot be VDPAU-decoded on NVIDIA; after SW decode
-         * present I420 so VDPAU display / mixers can import 4:2:0 surfaces. */
-        if (sys->b_sw_444_to_420 && fmt->i_chroma != VLC_CODEC_RGB32
-         && fmt->i_chroma != VLC_CODEC_RGBP)
-        {
-            msg_Dbg(dec, "decoder output forced to I420 (from 4:4:4 SW decode)");
-            fmt->i_chroma = VLC_CODEC_I420;
-        }
+        /* Keep native 4:4:4 chroma for SW path (correct GL colors).
+         * Forced I420+swscale produced green cast. VDPAU skips 4:4:4 → GL. */
+        /* native 4:4:4 retained — see GetFormat log */
 
         avcodec_align_dimensions2(ctx, &width, &height, aligns);
     }
@@ -408,6 +403,14 @@ static int lavc_CopyPicture(decoder_t *dec, picture_t *pic, AVFrame *frame)
         {
             msg_Err(dec, "swscale 4:4:4->4:2:0 context failed");
             return VLC_EGENERIC;
+        }
+        /* Full-range (JPEG/YUVJ) sources need explicit range or chroma goes wrong → green cast */
+        {
+            const int *coef = sws_getCoefficients(SWS_CS_DEFAULT);
+            const int src_full = (frame->format == AV_PIX_FMT_YUVJ444P
+                               || frame->color_range == AVCOL_RANGE_JPEG) ? 1 : 0;
+            sws_setColorspaceDetails(sys->p_sws_444, coef, src_full, coef, 0,
+                                     0, 1 << 16, 1 << 16);
         }
         if (first)
             msg_Info(dec, "SW 4:4:4→4:2:0 conversion active (%dx%d)", w, h);
@@ -1847,7 +1850,7 @@ static enum PixelFormat ffmpeg_GetFormat( AVCodecContext *p_context,
         if (sw_desc != NULL && sw_desc->nb_components >= 3 &&
             sw_desc->log2_chroma_w == 0 && sw_desc->log2_chroma_h == 0)
         {
-            msg_Dbg(p_dec, "4:4:4 bitstream: SW decode + convert to 4:2:0 (no VDPAU/VAAPI HW decode)");
+            msg_Dbg(p_dec, "4:4:4 bitstream: SW decode, no VDPAU/VAAPI HW (native 4:4:4 out for GL)");
             can_hwaccel = false;
             p_sys->b_sw_444_to_420 = true;
         }

@@ -1,34 +1,66 @@
-# Visual QA + VDPAU 4:4:4→4:2:0
+# VLC-ng visual / HW-accel QA matrix
 
-## Technical fact (NVIDIA GTX 1050)
+Evidence dir (goal): `/tmp/grok-goal-c6ca9929f932/implementer/`  
+Shots also: `/tmp/vlc-ng-shots/`
 
-**H.264 High 4:4:4 Predictive cannot be hardware-decoded by VDPAU/NVDEC.**
-The ASIC only decodes 4:2:0 (and limited 4:2:2 for some codecs). You cannot
-feed a 4:4:4 bitstream into VDPAU decode. Conversion must be:
+## Pure `-V vdpau` (NVIDIA presentation)
 
+| Session | Picture | Evidence |
+|---------|---------|----------|
+| Xmux Xvfb (`xmux start … --gl nvidia`) | **BLACK** (backend may open) | `vdpau-pure-xvfb-t*.png` mean≈4.4 |
+| `xmux start … --attach-to :0 --gl nvidia` | **OK** | `vdpau-pure-t*.png` mean≈140–150; log: `using the "vdpau" module` + NVIDIA backend |
+
+**Policy:** Do not patch VLC for Xvfb. Use attach-to :0 for pure VDPAU visual QA.  
+Helper: `scripts/xmux-vdpau-host.sh`  
+Xmux doc: `docs/improved-xvfb.md` (EdgeOfAssembly/Xmux)
+
+## Intel VAAPI (UHD 630 + iHD)
+
+| Check | Result |
+|-------|--------|
+| Driver | `iHD_drv_video.so` (media-driver 26.2.3) |
+| `vainfo --display drm --device $INTEL_RENDER` + `LIBVA_DRIVER_NAME=iHD` | H.264 Main/High VLD listed — `vainfo-intel.txt` |
+| VLC `-V gl --avcodec-hw vaapi` + `LIBVA_DRIVER_NAME=iHD` under Xmux | Opens VAAPI (`trying format vaapi`, VAOP); often **SW chroma VAOP→I420** (no zero-copy glconv); picture **non-black** mean≈110 — `vaapi-intel.log`, `vaapi-intel-t*.png` |
+| X11 `vainfo` with iHD forced on default GPU | Fails if default DRM is NVIDIA (`unsupported drm device … nvid`) — use **DRM + Intel render node** |
+
+```bash
+INTEL=$(readlink -f /dev/dri/by-path/pci-0000:00:02.0-render)
+LIBVA_DRIVER_NAME=iHD vainfo --display drm --device "$INTEL"
+LIBVA_DRIVER_NAME=iHD cvlc -V gl --avcodec-hw vaapi file.mp4
 ```
-SW decode (yuv444p) → swscale → I420 → VDPAU import/display or GL
+
+## NVIDIA VAAPI (nvidia-vaapi-driver)
+
+**Hard limit (not fixed in VLC-ng):** no glconv match for zero-copy;  
+`Using SW chroma filter for 1280x720 VAOP -> I420` then often falls to VDPAU.  
+See `vaapi-nvidia-limits.md` + `vaapi-nvidia.log`.
+
+**Prefer:** `-V gl --avcodec-hw vdpau` for NVIDIA HW decode under Xmux.
+
+## Day-to-day (keep green)
+
+| Path | Result | Evidence |
+|------|--------|----------|
+| `-V gl --avcodec-hw vdpau` 420 | OK, `Using NVIDIA VDPAU` | `daily-gl-vdpau.*` mean≈110 |
+| `-V gl` duke3d **444** | OK native **I444** SW (no forced I420) | `daily-gl-444-fixed.*` — was green with forced I420 |
+
+### 4:4:4 green cast (fixed)
+
+Forced SW 4:4:4→I420 via swscale zeroed/wrong chroma → **pure green** (RGB≈0.5,56,0.4).  
+**Fix:** keep native I444 for SW 444; no HW decode of High 4:4:4 (impossible on GTX 1050).
+
+## Recommended commands
+
+```bash
+# NVIDIA under Xmux (best)
+cvlc -V gl --avcodec-hw vdpau video-420.mp4
+
+# Pure VDPAU picture (host NVIDIA X)
+scripts/xmux-vdpau-host.sh video-420.mp4
+
+# Intel VAAPI
+LIBVA_DRIVER_NAME=iHD cvlc -V gl --avcodec-hw vaapi video-420.mp4
+
+# 4:4:4 (SW, native I444)
+cvlc -V gl duke3d-444.mp4
 ```
-
-## Implemented (vlc-ng)
-
-1. Detect 4:4:4 SW format in `GetFormat` → disable HW decode, set `b_sw_444_to_420`
-2. Force decoder output chroma to **I420**
-3. `lavc_CopyPicture` uses **libswscale** to convert each frame 444→420
-4. VDPAU display queries real 444 surface caps (no blind reject)
-
-## Path matrix (Xmux + NVIDIA PRIME)
-
-| Content | Command | Result |
-|---------|---------|--------|
-| 420 | `-V gl --avcodec-hw none` | OK picture |
-| 420 | `-V gl --avcodec-hw vdpau` | OK picture + NVIDIA VDPAU decode |
-| 420 | `-V vdpau` | Opens VDPAU; **black under Xmux/Xvfb** (host :0 better) |
-| 444 | `-V gl` | OK; SW decode + I420 convert |
-| 444 | `-V vdpau` | Pipeline OK (I420 + vdpau_chroma); **black under Xmux** |
-
-## Still limited
-
-- Pure `-V vdpau` presentation on Xmux/Xvfb stays black (driver presents, pixels not visible in Xvfb capture). Prefer GL display.
-- Intel iHD VAAPI still not installed.
-- NVENC encode not tested.
