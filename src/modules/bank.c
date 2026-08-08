@@ -807,6 +807,11 @@ module_t **module_list_get (size_t *n)
  */
 ssize_t module_list_cap (module_t ***restrict list, const char *name)
 {
+    if (unlikely(name == NULL))
+    {
+        *list = NULL;
+        return 0;
+    }
     const vlc_modcap_t **cp = tfind(&name, &modules.caps_tree, vlc_modcap_cmp);
     if (cp == NULL)
     {

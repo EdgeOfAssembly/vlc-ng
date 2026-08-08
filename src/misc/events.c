@@ -160,7 +160,7 @@ void vlc_event_detach( vlc_event_manager_t *p_em,
         {
             /* that's our listener */
             ARRAY_REMOVE( slot->listeners,
-                          fe_idx /* This comes from the macro (and that's why
+                          fe_idx_ /* This comes from the macro (and that's why
                                     I hate macro) */ );
             vlc_mutex_unlock( &p_em->lock );
             free( listener );

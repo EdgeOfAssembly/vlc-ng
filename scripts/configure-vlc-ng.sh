@@ -96,6 +96,7 @@ export CXXFLAGS="${CXXFLAGS:--O2 -g -pipe}"
   --disable-smbclient \
   --disable-omxil \
   --disable-gst-decode \
+  --disable-sid \
   --with-contrib=no \
   "$@"
 

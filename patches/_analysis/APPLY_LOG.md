@@ -16,3 +16,7 @@ Date: 2026-08-08T02:43:28+03:00
 - **rtp.patch**: SKIP (already applied / subsumed)
 - **satip.patch**: SKIP (already applied / subsumed)
 - **telx.patch**: SKIP (already applied / subsumed)
+- **01-video-c-hwaccel-444.patch**: APPLIED
+- **02-vdpau-display-444.patch**: APPLIED
+- **08-vout-backend-print-and-help-list.patch**: APPLIED
+- **09-update-vlc-man-page.patch**: APPLIED

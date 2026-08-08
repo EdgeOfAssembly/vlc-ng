@@ -318,8 +318,16 @@ done:
 
     if (module != NULL)
     {
-        msg_Dbg (obj, "using %s module \"%s\"", capability,
-                 module_get_object (module));
+        if (!strcmp (capability, "vout display"))
+        {
+            const char *name = (module->i_shortcuts > 0)
+                ? module->pp_shortcuts[module->i_shortcuts - 1]
+                : module_get_object (module);
+            msg_Info (obj, "video output: using the \"%s\" module", name);
+        }
+        else
+            msg_Dbg (obj, "using %s module \"%s\"", capability,
+                     module_get_object (module));
         vlc_object_set_name (obj, module_get_object (module));
     }
     else

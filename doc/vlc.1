@@ -1,20 +1,5 @@
 .\"                                      Hey, EMACS: -*- nroff -*-
-.\" First parameter, NAME, should be all caps
-.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
-.\" other parameters are allowed: see man(7), man(1)
-.TH VLC 1 "Feb 14, 2005"
-.\" Please adjust this date whenever revising the manpage.
-.\"
-.\" Some roff macros, for reference:
-.\" .nh        disable hyphenation
-.\" .hy        enable hyphenation
-.\" .ad l      left justify
-.\" .ad b      justify to both left and right margins
-.\" .nf        disable filling
-.\" .fi        enable filling
-.\" .br        insert line break
-.\" .sp <n>    insert n+1 empty lines
-.\" for manpage-specific macros, see man(7)
+.TH VLC 1 "July 2026"
 .SH NAME
 vlc, qvlc, svlc, nvlc, rvlc, cvlc \- the VLC media player
 .SH SYNOPSIS
@@ -22,100 +7,202 @@ vlc, qvlc, svlc, nvlc, rvlc, cvlc \- the VLC media player
 .RI [ OPTIONS ]
 .RI [ ITEMS ]...
 .SH DESCRIPTION
-This manual page documents briefly the
 .B VLC
-multimedia player and server.
-
+is a free and open source cross-platform multimedia player and framework
+that plays most multimedia files as well as DVDs, Audio CDs, VCDs, and
+various streaming protocols.
+.PP
+This manual page documents the command-line usage. For the full list of
+options (which depends on installed plugins), use:
+.PP
+.B vlc \-\-longhelp \-\-advanced
+.PP
+Most user interface controls (keybindings, mouse actions) are configurable
+via the GUI under
+.B Tools > Preferences > Hotkeys
+or
+.B Interface.
 .SH OPTIONS
 .B VLC
-follows the usual GNU command line syntax, with long
-options starting with two dashes (`-').
-For a precise description of options, please use "vlc \-\-help".
-
-The complete list of
-.B VLC
-options depends on what plugins are installed because they automatically
-add their own options. Please use "vlc \-\-longhelp \-\-advanced" for a
-complete list of available options.
-
+follows the usual GNU command line syntax, with long options starting with
+two dashes (\-\-).
+.PP
+See
+.B vlc \-\-help
+for a list of basic options and
+.B vlc \-\-longhelp
+for a more complete list.
 .SH ITEMS
 .B VLC
-recognizes several URL-style items:
+accepts local files, network streams, and special devices. Some examples:
 .TP
-.B *.mpg, *.vob, *.avi, *.mp3, *.ogg, *.opus
-Various multimedia file formats
+.B file:///path/to/file.avi
+Local file (also plain paths work)
 .TP
-.B dvd://[<device>][@<raw device>][#[<title>][:[<chapter>][:<angle>]]]
-DVD device (for instance dvd:///dev/dvd). The raw device is optional and
-must have been prepared beforehand.
+.B dvd://[/dev/dvd]
+DVD device
 .TP
-.B vcd://[<device>][@{E|P|E|T|S}[<number>]]
-VCD device (for instance vcd:///dev/cdrom).
+.B vcd://
+Video CD
 .TP
-.B udp://[@[<multicast address>][:<local port>]]
-UDP stream, such as one sent by VLS or another VLC.
-Usually "udp://" is enough.
+.B udp://@239.255.0.1:1234
+UDP multicast stream
 .TP
-.B http://<server address>[:<server port>]/[<file>]
-HTTP stream
+.B http://example.com/stream.m3u8
+HTTP stream (including HLS)
 .TP
-.B rtsp://<server address>[:<server port>]/<stream name>
-RTSP Video On Demand stream
+.B rtsp://server:554/stream
+RTSP stream
+.SH KEYBOARD CONTROLS
+The following are the default keybindings on Linux (X11/Wayland). They can
+be changed in
+.B Preferences > Hotkeys.
+.PP
+.TS
+l l.
+Key(s)	Action
+_
+Space	Play/Pause
+f	Toggle fullscreen
+Esc	Leave fullscreen
+n	Next item in playlist
+p	Previous item in playlist
+s	Stop
+Ctrl+q	Quit VLC
+Ctrl+Up	Volume up
+Ctrl+Down	Volume down
+m	Mute/Unmute
+l	Loop playlist
+r	Random (shuffle)
+t	Show current position
+a	Cycle aspect ratio
+c	Cycle crop
+d	Toggle deinterlace
+Shift+d	Cycle deinterlace mode
+v	Cycle subtitle track
+Shift+v	Toggle subtitles
+b	Cycle audio track
+Shift+s	Take snapshot
+Shift+r	Start/Stop recording
+i	Show/hide interface
+Ctrl+Left	Short jump backward (10s)
+Ctrl+Right	Short jump forward (10s)
+Alt+Left	Medium jump backward (1m)
+Alt+Right	Medium jump forward (1m)
+Shift+Left	Extra short jump backward (3s)
+Shift+Right	Extra short jump forward (3s)
+h/g	Subtitle delay up/down
+k/j	Audio delay up/down
+z	Zoom in
+Shift+z	Zoom out
+o	Toggle autoscale
+w	Toggle wallpaper mode (where supported)
+Shift+m	Disc menu
+Shift+o/b	Title previous/next
+Shift+p/n	Chapter previous/next
+Page Up	Increase 360° field of view
+Page Down	Decrease 360° field of view
+F1..F10	Play bookmark 1..10
+Ctrl+F1..F10	Set bookmark 1..10
+Ctrl+w	Clear playlist
+.TE
+.PP
+Many more actions exist (subtitles delay, audio delay, recording, rate control,
+bookmarks, etc.). See the Hotkeys preferences panel for the complete list
+and to customize bindings.
+.SH MOUSE CONTROLS
 .TP
-.B vlc://<command>
-Execute a playlist command. Commands are:
-.B pause
-(pause execution of other items), and
-.B quit
-(close VLC).
-
+.B Left click
+Pause/resume playback (configurable).
+.TP
+.B Double left click
+Toggle fullscreen.
+.TP
+.B Right click
+Open the popup/context menu.
+.TP
+.B Middle click
+Often toggles mute or performs a configurable action.
+.TP
+.B Mouse wheel (vertical)
+Volume control by default (see
+.B hotkeys-y-wheel-mode
+option). Can be set to seek position or ignored.
+.TP
+.B Mouse wheel (horizontal)
+Seek/position control by default (see
+.B hotkeys-x-wheel-mode
+option).
+.PP
+.SH MOUSE GESTURES
+The "gestures" module (enabled via interface selection or preferences) allows
+controlling VLC using mouse movements while holding a mouse button (usually
+right button). Common gestures include:
+.TP
+.B Left/right
+Seek backward/forward.
+.TP
+.B Up/down
+Volume up/down.
+.TP
+.B Other shapes
+Play/pause, fullscreen, stop, etc. (fully configurable).
+.PP
+Gestures can be enabled in the interface settings.
+.SH LISTING AND CUSTOMIZING CONTROLS
+To view or change all current keybindings and mouse actions:
+.IP \(bu
+Open VLC and go to
+.B Tools > Preferences > Hotkeys.
+This shows every action with its current binding.
+.IP \(bu
+Mouse wheel behavior is configured under
+.B Interface > Mouse wheel.
+.IP \(bu
+From the command line you can inspect the active configuration with
+.B vlc \-\-list
+or by examining the configuration file (usually
+.I ~/.config/vlc/vlcrc
+or
+.I ~/.vlc/vlcrc
+on older systems) after using the GUI to view settings.
+.PP
+All controls are stored in the configuration and can be overridden on the
+command line or in the config file.
+.SH INTERFACES
+.TP
+.B cvlc
+Command-line interface (no GUI).
+.TP
+.B nvlc
+NCurses (console) interface.
+.TP
+.B rvlc
+Remote control interface.
+.TP
+.B qvlc / svlc
+Qt / Skins interfaces (default on most desktops).
 .SH ENVIRONMENT VARIABLES
-The following environment variables may affect VLC:
-
-.TP
-.B DISPLAY
-The X11 display server address.
-
-.TP
-.B http_proxy
-The HTTP proxy server URL.
-
-.TP
-.B OSSAUDIO_DEV
-The default audio output device,
-used by the OSSv4 output plugin.
-
-.TP
-.B VLC_DATA_PATH
-The directory containing VLC run-time data files (e.g. /usr/share/vlc).
-
-.TP
-.B VLC_PLUGIN_PATH
-An extra directory to load VLC plugins from.
-
+See the full list with
+.B vlc \-\-help
+or in the source. Common ones include:
 .TP
 .B VLC_VERBOSE
-The level of verbosity for log messages
-(0: silent, 1: error/info, 2: warning, 3: debug).
-
+Verbosity level (0-3).
 .TP
-.B XDG_CACHE_DIR XDG_CONFIG_DIR XDG_DATA_DIR
-The directories to store user cached data, user configuration files and
-user data files respectively.
-
+.B VLC_PLUGIN_PATH
+Additional plugin search path.
 .TP
-.B XDG_DOCUMENTS_DIR XDG_DOWNLOAD_DIR XDG_MUSIC_DIR XDG_PICTURES_DIR XDG_VIDEO_DIR
-The directories to fetch or store user text files,
-downloads, music, pictures (i.e. snapshots), and video respectively.
-
+.B DISPLAY
+X11 display (when relevant).
 .TP
-.B XDG_SESSION_COOKIE
-The unique identifier of the desktop session,
-used by the PulseAudio output plugin.
-
+.B VLC_DATA_PATH
+Directory containing runtime data files.
 .SH SEE ALSO
-Online documentation: http://www.videolan.org/doc/
+.BR vlc (1),
+Online documentation and wiki at https://wiki.videolan.org/
 .PP
+Source code and more at https://www.videolan.org/
 .SH AUTHOR
-This manual page was written by Sam Hocevar <sam@zoy.org>, for the Debian
-GNU/Linux system (but may be used by others).
+This manual page was originally written by Sam Hocevar <sam@zoy.org>
+for the Debian GNU/Linux system. It has been updated for modern VLC usage.

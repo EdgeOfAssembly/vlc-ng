@@ -469,6 +469,14 @@ static int Open(vlc_object_t *obj)
     else
     if (vlc_fourcc_to_vdp_ycc(fmt.i_chroma, &chroma, &format))
     {
+        /* Nvidia GPUs typically do not support 4:4:4 chroma in VDPAU display.
+         * Return gracefully so VLC can try another output (e.g. GL) */
+        if (chroma == VDP_CHROMA_TYPE_444)
+        {
+            msg_Dbg(vd, "VDPAU does not support 4:4:4 chroma, skipping");
+            goto error;
+        }
+
         uint32_t w, h;
         VdpBool ok;
 

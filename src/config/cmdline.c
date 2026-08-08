@@ -39,6 +39,75 @@
 
 #include <assert.h>
 
+static void ListChoiceHelp( vlc_object_t *p_this, const char *psz_name,
+                            const char *psz_desc )
+{
+    module_config_t *cfg = config_FindConfig( psz_name );
+    bool is_module = cfg && ( cfg->i_type == CONFIG_ITEM_MODULE ||
+                              cfg->i_type == CONFIG_ITEM_MODULE_CAT ||
+                              cfg->i_type == CONFIG_ITEM_MODULE_LIST ||
+                              cfg->i_type == CONFIG_ITEM_MODULE_LIST_CAT );
+
+    if( is_module )
+    {
+        /* For module options, list using user-friendly shortcuts (last
+         * shortcut is usually the nice short name the user types after -V).
+         * This avoids internal names like "vdpau_display" and duplicates
+         * from submodules. */
+        const char *cap = cfg->psz_type;
+        module_t **mods = NULL;
+        ssize_t n = 0;
+
+        if( cap != NULL )
+            n = module_list_cap( &mods, cap );
+
+        printf( "Available %s:\n", ( psz_desc && *psz_desc ) ? psz_desc : psz_name );
+
+        /* any */
+        printf( "  %-20s %s\n", "any", "Automatic" );
+
+        if( n > 0 && mods != NULL )
+        {
+            for( ssize_t i = 0; i < n; i++ )
+            {
+                module_t *m = mods[i];
+                const char *name = (m->i_shortcuts > 0)
+                    ? m->pp_shortcuts[ m->i_shortcuts - 1 ]
+                    : module_get_object(m);
+                const char *text = module_gettext( m, module_get_name(m, true) );
+                printf( "  %-20s %s\n", name, text ? text : "" );
+            }
+        }
+
+        /* none */
+        printf( "  %-20s %s\n", "none", "Disable" );
+
+        module_list_free( mods );
+        exit( 0 );
+    }
+
+    /* Fallback for other string choices */
+    char **ppsz_values, **ppsz_texts;
+    ssize_t i_count = config_GetPszChoices( p_this, psz_name,
+                                            &ppsz_values, &ppsz_texts );
+    if( i_count > 0 )
+    {
+        printf( "Available %s:\n", ( psz_desc && *psz_desc ) ? psz_desc : psz_name );
+        for( ssize_t i = 0; i < i_count; i++ )
+            printf( "  %-20s %s\n", ppsz_values[i],
+                    ( ppsz_texts[i] && *ppsz_texts[i] ) ? ppsz_texts[i] : "" );
+
+        for( ssize_t i = 0; i < i_count; i++ )
+        {
+            free( ppsz_values[i] );
+            free( ppsz_texts[i] );
+        }
+        free( ppsz_values );
+        free( ppsz_texts );
+    }
+    exit( 0 );
+}
+
 #undef config_LoadCmdLine
 /**
  * Parse command line for configuration options.
@@ -210,6 +279,59 @@ int config_LoadCmdLine( vlc_object_t *p_this, int i_argc,
                     continue;
                 }
 
+                if( pindex != NULL && state.arg )
+                {
+                    if( !strcasecmp( state.arg, "help" ) ||
+                        (state.arg[0] == '-' && state.arg[1] != '\0') )
+                    {
+                        if( p_conf->i_type == CONFIG_ITEM_MODULE ||
+                            p_conf->i_type == CONFIG_ITEM_MODULE_CAT ||
+                            p_conf->i_type == CONFIG_ITEM_MODULE_LIST ||
+                            p_conf->i_type == CONFIG_ITEM_MODULE_LIST_CAT )
+                        {
+                            ListChoiceHelp( p_this, psz_name, p_conf->psz_text );
+                        }
+                    }
+                    else if( strcasecmp( state.arg, "any" ) &&
+                             strcasecmp( state.arg, "none" ) &&
+                             (p_conf->i_type == CONFIG_ITEM_MODULE ||
+                              p_conf->i_type == CONFIG_ITEM_MODULE_CAT ||
+                              p_conf->i_type == CONFIG_ITEM_MODULE_LIST ||
+                              p_conf->i_type == CONFIG_ITEM_MODULE_LIST_CAT) )
+                    {
+                        /* Validate that the value is a known module for this option */
+                        if( p_conf->psz_type != NULL )
+                        {
+                            bool valid = false;
+                            module_t **mods = NULL;
+                            ssize_t n = module_list_cap( &mods, p_conf->psz_type );
+                            if( n > 0 && mods != NULL )
+                            {
+                                for( ssize_t i = 0; i < n && !valid; i++ )
+                                {
+                                    for( unsigned s = 0; s < mods[i]->i_shortcuts; s++ )
+                                    {
+                                        if( !strcasecmp( mods[i]->pp_shortcuts[s], state.arg ) )
+                                        {
+                                            valid = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            module_list_free( mods );
+                            if( n > 0 && !valid )
+                            {
+                                fprintf( stderr,
+                                         "unknown %s module: %s\n"
+                                         "Use \"%s help\" to list available modules.\n",
+                                         psz_name, state.arg, psz_name );
+                                exit( 1 );
+                            }
+                        }
+                    }
+                }
+
                 switch( CONFIG_CLASS(p_conf->i_type) )
                 {
                     case CONFIG_ITEM_STRING:
@@ -244,7 +366,61 @@ int config_LoadCmdLine( vlc_object_t *p_this, int i_argc,
         if( pp_shortopts[i_cmd] != NULL )
         {
             const char *name = pp_shortopts[i_cmd]->psz_name;
-            switch( CONFIG_CLASS(pp_shortopts[i_cmd]->i_type) )
+            const module_config_t *p_item = pp_shortopts[i_cmd];
+
+            if( pindex != NULL && state.arg )
+            {
+                if( !strcasecmp( state.arg, "help" ) ||
+                    (state.arg[0] == '-' && state.arg[1] != '\0') )
+                {
+                    if( p_item->i_type == CONFIG_ITEM_MODULE ||
+                        p_item->i_type == CONFIG_ITEM_MODULE_CAT ||
+                        p_item->i_type == CONFIG_ITEM_MODULE_LIST ||
+                        p_item->i_type == CONFIG_ITEM_MODULE_LIST_CAT )
+                    {
+                        ListChoiceHelp( p_this, name, p_item->psz_text );
+                    }
+                }
+                else if( strcasecmp( state.arg, "any" ) &&
+                         strcasecmp( state.arg, "none" ) &&
+                         (p_item->i_type == CONFIG_ITEM_MODULE ||
+                          p_item->i_type == CONFIG_ITEM_MODULE_CAT ||
+                          p_item->i_type == CONFIG_ITEM_MODULE_LIST ||
+                          p_item->i_type == CONFIG_ITEM_MODULE_LIST_CAT) )
+                {
+                    if( p_item->psz_type != NULL )
+                    {
+                        bool valid = false;
+                        module_t **mods = NULL;
+                        ssize_t n = module_list_cap( &mods, p_item->psz_type );
+                        if( n > 0 && mods != NULL )
+                        {
+                            for( ssize_t i = 0; i < n && !valid; i++ )
+                            {
+                                for( unsigned s = 0; s < mods[i]->i_shortcuts; s++ )
+                                {
+                                    if( !strcasecmp( mods[i]->pp_shortcuts[s], state.arg ) )
+                                    {
+                                        valid = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        module_list_free( mods );
+                        if( n > 0 && !valid )
+                        {
+                            fprintf( stderr,
+                                     "unknown %s module: %s\n"
+                                     "Use \"%s help\" to list available modules.\n",
+                                     name, state.arg, name );
+                            exit( 1 );
+                        }
+                    }
+                }
+            }
+
+            switch( CONFIG_CLASS(p_item->i_type) )
             {
                 case CONFIG_ITEM_STRING:
                     var_Create( p_this, name, VLC_VAR_STRING );
@@ -275,16 +451,44 @@ int config_LoadCmdLine( vlc_object_t *p_this, int i_argc,
         /* Internal error: unknown option */
         if( !b_ignore_errors )
         {
-            fputs( "vlc: unknown option"
-                     " or missing mandatory argument ", stderr );
+            const module_config_t *bad_mod = NULL;
+
             if( state.opt )
             {
-                fprintf( stderr, "`-%c'\n", state.opt );
+                bad_mod = pp_shortopts[(unsigned char)state.opt];
+                if (bad_mod && (bad_mod->i_type == CONFIG_ITEM_MODULE ||
+                                bad_mod->i_type == CONFIG_ITEM_MODULE_CAT ||
+                                bad_mod->i_type == CONFIG_ITEM_MODULE_LIST ||
+                                bad_mod->i_type == CONFIG_ITEM_MODULE_LIST_CAT))
+                {
+                    ListChoiceHelp(p_this, bad_mod->psz_name, bad_mod->psz_text);
+                }
+                fputs( "vlc: unknown option or missing mandatory argument `", stderr );
+                fprintf( stderr, "-%c'\n", state.opt );
             }
             else
             {
-                fprintf( stderr, "`%s'\n", ppsz_argv[state.ind-1] );
+                const char *tok = ppsz_argv[state.ind-1];
+
+                if (strncmp(tok, "--", 2) == 0) {
+                    const char *nm = tok + 2;
+                    char *eq = strchr(nm, '=');
+                    if (eq) *eq = '\0';
+                    bad_mod = config_FindConfig(nm);
+                    if (eq) *eq = '=';
+                    if (bad_mod && (bad_mod->i_type == CONFIG_ITEM_MODULE ||
+                                    bad_mod->i_type == CONFIG_ITEM_MODULE_CAT ||
+                                    bad_mod->i_type == CONFIG_ITEM_MODULE_LIST ||
+                                    bad_mod->i_type == CONFIG_ITEM_MODULE_LIST_CAT))
+                    {
+                        ListChoiceHelp(p_this, bad_mod->psz_name, bad_mod->psz_text);
+                    }
+                }
+
+                fputs( "vlc: unknown option or missing mandatory argument `", stderr );
+                fprintf( stderr, "%s'\n", tok );
             }
+
             fputs( "Try `vlc --help' for more information.\n", stderr );
             goto out;
         }
