@@ -64,3 +64,14 @@ LIBVA_DRIVER_NAME=iHD cvlc -V gl --avcodec-hw vaapi video-420.mp4
 # 4:4:4 (SW, native I444)
 cvlc -V gl duke3d-444.mp4
 ```
+
+## 4:4:4 pure `-V vdpau` green/flash (fixed v2)
+
+**Root cause:** avcodec direct rendering mapped H.264 4:4:4 into I420
+`picture_t` buffers → wrong UV (green) + tearing.
+
+**Fix:** `b_direct_rendering = false` when `b_sw_444_to_420`; decode to
+default buffers then `lavc_CopyPicture` 2×2 box filter to I420.
+
+**Proof:** gnome-screenshot during host `-vvv -V vdpau duke3d-444.mp4` —
+G−R negative (not green); log: `SW 4:4:4→I420 (box filter) 800x600`.
