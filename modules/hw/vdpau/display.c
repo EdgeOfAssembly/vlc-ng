@@ -469,14 +469,8 @@ static int Open(vlc_object_t *obj)
     else
     if (vlc_fourcc_to_vdp_ycc(fmt.i_chroma, &chroma, &format))
     {
-        /* Nvidia GPUs typically do not support 4:4:4 chroma in VDPAU display.
-         * Return gracefully so VLC can try another output (e.g. GL) */
-        if (chroma == VDP_CHROMA_TYPE_444)
-        {
-            msg_Dbg(vd, "VDPAU does not support 4:4:4 chroma, skipping");
-            goto error;
-        }
-
+        /* Query real device caps. NVIDIA often has no 4:4:4 surfaces; then
+         * fail open so decoder-side 4:4:4→4:2:0 conversion or GL can win. */
         uint32_t w, h;
         VdpBool ok;
 
@@ -490,7 +484,10 @@ static int Open(vlc_object_t *obj)
         }
         if (!ok || w < fmt.i_width || h < fmt.i_height)
         {
-            msg_Err(vd, "source video %s not supported", "chroma type");
+            if (chroma == VDP_CHROMA_TYPE_444)
+                msg_Dbg(vd, "VDPAU has no 4:4:4 surfaces (need 4:2:0 conversion)");
+            else
+                msg_Err(vd, "source video %s not supported", "chroma type");
             goto error;
         }
 

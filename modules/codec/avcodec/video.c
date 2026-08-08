@@ -39,6 +39,7 @@
 #include <libavcodec/avcodec.h>
 #include <libavutil/mem.h>
 #include <libavutil/pixdesc.h>
+#include <libswscale/swscale.h>
 #include "avcommon_compat.h"
 #if LIBAVUTIL_VERSION_CHECK( 55, 16, 101 )
 #include <libavutil/mastering_display_metadata.h>
@@ -70,6 +71,9 @@ struct decoder_sys_t
     bool b_show_corrupted;
     bool b_from_preroll;
     bool b_hardware_only;
+    /* SW-decode 4:4:4 then convert to 4:2:0 for VDPAU/legacy vouts */
+    bool b_sw_444_to_420;
+    struct SwsContext *p_sws_444;
     enum AVDiscard i_skip_frame;
 
     /* how many decoded frames are late */
@@ -143,6 +147,7 @@ static int lavc_GetVideoFormat(decoder_t *dec, video_format_t *restrict fmt,
     if (pix_fmt == sw_pix_fmt)
     {   /* software decoding */
         int aligns[AV_NUM_DATA_POINTERS];
+        decoder_sys_t *sys = dec->p_sys;
 
         if (GetVlcChroma(fmt, pix_fmt))
             return -1;
@@ -153,6 +158,15 @@ static int lavc_GetVideoFormat(decoder_t *dec, video_format_t *restrict fmt,
          * doesn't trigger a new vout request, but a new chroma yes. */
         if (pix_fmt == AV_PIX_FMT_PAL8 && !dec->fmt_out.video.p_palette)
             fmt->i_chroma = VLC_CODEC_RGB32;
+
+        /* H.264 High 4:4:4 cannot be VDPAU-decoded on NVIDIA; after SW decode
+         * present I420 so VDPAU display / mixers can import 4:2:0 surfaces. */
+        if (sys->b_sw_444_to_420 && fmt->i_chroma != VLC_CODEC_RGB32
+         && fmt->i_chroma != VLC_CODEC_RGBP)
+        {
+            msg_Dbg(dec, "decoder output forced to I420 (from 4:4:4 SW decode)");
+            fmt->i_chroma = VLC_CODEC_I420;
+        }
 
         avcodec_align_dimensions2(ctx, &width, &height, aligns);
     }
@@ -365,7 +379,63 @@ static int lavc_CopyPicture(decoder_t *dec, picture_t *pic, AVFrame *frame)
         msg_Err(dec, "Unsupported decoded output format %d (%s)",
                 sys->p_context->pix_fmt, (name != NULL) ? name : "unknown");
         return VLC_EGENERIC;
-    } else if (fourcc != pic->format.i_chroma
+    }
+
+    /* SW 4:4:4 -> I420 conversion for VDPAU / legacy display paths */
+    if (sys->b_sw_444_to_420
+     && pic->format.i_chroma == VLC_CODEC_I420
+     && (frame->format == AV_PIX_FMT_YUV444P
+      || frame->format == AV_PIX_FMT_YUVJ444P
+      || frame->format == AV_PIX_FMT_YUV444P10LE
+      || frame->format == AV_PIX_FMT_YUV444P12LE))
+    {
+        const int w = frame->width;
+        const int h = frame->height;
+        if (w != (int) pic->format.i_visible_width
+         || h < (int) pic->format.i_visible_height)
+        {
+            msg_Warn(dec, "dropping frame because the vout changed");
+            return VLC_EGENERIC;
+        }
+
+        enum AVPixelFormat dst_fmt = AV_PIX_FMT_YUV420P;
+        const bool first = (sys->p_sws_444 == NULL);
+        sys->p_sws_444 = sws_getCachedContext(sys->p_sws_444,
+                                              w, h, frame->format,
+                                              w, h, dst_fmt,
+                                              SWS_BILINEAR, NULL, NULL, NULL);
+        if (sys->p_sws_444 == NULL)
+        {
+            msg_Err(dec, "swscale 4:4:4->4:2:0 context failed");
+            return VLC_EGENERIC;
+        }
+        if (first)
+            msg_Info(dec, "SW 4:4:4→4:2:0 conversion active (%dx%d)", w, h);
+
+        uint8_t *dst_data[4] = {
+            pic->p[0].p_pixels,
+            pic->p[1].p_pixels,
+            pic->p[2].p_pixels,
+            NULL
+        };
+        int dst_linesize[4] = {
+            pic->p[0].i_pitch,
+            pic->p[1].i_pitch,
+            pic->p[2].i_pitch,
+            0
+        };
+
+        if (sws_scale(sys->p_sws_444,
+                      (const uint8_t * const *) frame->data, frame->linesize,
+                      0, h, dst_data, dst_linesize) < 0)
+        {
+            msg_Err(dec, "swscale 4:4:4->4:2:0 failed");
+            return VLC_EGENERIC;
+        }
+        return VLC_SUCCESS;
+    }
+
+    if (fourcc != pic->format.i_chroma
      /* ensure we never read more than dst lines/pixels from src */
      || frame->width != (int) pic->format.i_visible_width
      || frame->height < (int) pic->format.i_visible_height)
@@ -468,6 +538,8 @@ static int InitVideoDecCommon( decoder_t *p_dec )
     int i_val;
 
     p_sys->p_va = NULL;
+    p_sys->b_sw_444_to_420 = false;
+    p_sys->p_sws_444 = NULL;
     vlc_sem_init( &p_sys->sem_mt, 0 );
 
     /* ***** Fill p_context with init values ***** */
@@ -1503,6 +1575,9 @@ void EndVideoDec( vlc_object_t *obj )
     if( p_sys->p_va )
         vlc_va_Delete( p_sys->p_va, &hwaccel_context );
 
+    if( p_sys->p_sws_444 != NULL )
+        sws_freeContext( p_sys->p_sws_444 );
+
     vlc_sem_destroy( &p_sys->sem_mt );
     free( p_sys );
 }
@@ -1764,17 +1839,20 @@ static enum PixelFormat ffmpeg_GetFormat( AVCodecContext *p_context,
             swfmt = pi_fmt[i];
     }
 
-    /* If the software format is 4:4:4, disable hardware acceleration
-     * since VDPAU/VAAPI typically don't support it for H.264 output */
+    /* H.264 High 4:4:4 Predictive is not HW-decoded by NVIDIA VDPAU/VAAPI.
+     * SW-decode then convert to I420 so VDPAU display can use 4:2:0 surfaces. */
     if (swfmt != AV_PIX_FMT_NONE)
     {
         const AVPixFmtDescriptor *sw_desc = av_pix_fmt_desc_get(swfmt);
         if (sw_desc != NULL && sw_desc->nb_components >= 3 &&
             sw_desc->log2_chroma_w == 0 && sw_desc->log2_chroma_h == 0)
         {
-            msg_Dbg(p_dec, "4:4:4 chroma not supported by VDPAU/VAAPI, using software decode");
+            msg_Dbg(p_dec, "4:4:4 bitstream: SW decode + convert to 4:2:0 (no VDPAU/VAAPI HW decode)");
             can_hwaccel = false;
+            p_sys->b_sw_444_to_420 = true;
         }
+        else
+            p_sys->b_sw_444_to_420 = false;
     }
 
     /* Use the default fmt in priority of any sw fmt if the default fmt is a hw

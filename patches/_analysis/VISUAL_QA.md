@@ -1,21 +1,34 @@
-# Visual QA notes (Xmux + terminal logs)
+# Visual QA + VDPAU 4:4:4→4:2:0
 
-## Harness
-- **Spectator:** `xmux attach vlc-ng --no-reconnect` on host `:0` (required while testing)
-- **Terminal log:** `scripts/play-once.sh --log PATH` tees full VLC stdout/stderr
-- **Screenshots:** `/tmp/vlc-ng-shots/` (outside repo gitignore so agents can `read_file` images)
-- **Runner:** `scripts/xmux-play-test.sh <name> <secs> [vlc-args...] media`
+## Technical fact (NVIDIA GTX 1050)
 
-## Results (2026-08-08)
+**H.264 High 4:4:4 Predictive cannot be hardware-decoded by VDPAU/NVDEC.**
+The ASIC only decodes 4:2:0 (and limited 4:2:2 for some codecs). You cannot
+feed a 4:4:4 bitstream into VDPAU decode. Conversion must be:
 
-| Test | Terminal | Visual (MCP shots) |
-|------|----------|--------------------|
-| `-V gl --avcodec-hw none` 420 | opened, glx | **OK** color bars, mean~110 |
-| `-V vdpau` 420 | vdpau_display + NVIDIA backend | **BLACK** under Xmux/Xvfb (title bar only) |
-| `-V gl --avcodec-hw vdpau` 420 | `Using NVIDIA VDPAU` + glconv_vdpau | **OK** color bars, mean~110 |
-| `-V gl` duke3d 444 | `4:4:4 chroma not supported... software` | **OK** game frames visible |
+```
+SW decode (yuv444p) → swscale → I420 → VDPAU import/display or GL
+```
 
-## Notes
-- Pure `-V vdpau` presents black on Xmux (Xvfb); prefer **GL display + VDPAU decode**.
-- Patch 08 originally segfaulted on `-V gl` (null `psz_type` → `module_list_cap`); fixed with null guards + bank.c harden.
-- Intel iHD VAAPI drivers not installed; VAAPI path uses `nvidia_drv_video.so` (NVDEC).
+## Implemented (vlc-ng)
+
+1. Detect 4:4:4 SW format in `GetFormat` → disable HW decode, set `b_sw_444_to_420`
+2. Force decoder output chroma to **I420**
+3. `lavc_CopyPicture` uses **libswscale** to convert each frame 444→420
+4. VDPAU display queries real 444 surface caps (no blind reject)
+
+## Path matrix (Xmux + NVIDIA PRIME)
+
+| Content | Command | Result |
+|---------|---------|--------|
+| 420 | `-V gl --avcodec-hw none` | OK picture |
+| 420 | `-V gl --avcodec-hw vdpau` | OK picture + NVIDIA VDPAU decode |
+| 420 | `-V vdpau` | Opens VDPAU; **black under Xmux/Xvfb** (host :0 better) |
+| 444 | `-V gl` | OK; SW decode + I420 convert |
+| 444 | `-V vdpau` | Pipeline OK (I420 + vdpau_chroma); **black under Xmux** |
+
+## Still limited
+
+- Pure `-V vdpau` presentation on Xmux/Xvfb stays black (driver presents, pixels not visible in Xvfb capture). Prefer GL display.
+- Intel iHD VAAPI still not installed.
+- NVENC encode not tested.
