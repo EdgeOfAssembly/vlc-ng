@@ -12,6 +12,7 @@ Branch: `feature/hwaccel-patches` · install: `/tmp/vlc-ng-install` or ASan `/mn
 - [x] 4:4:4 + GL (SW decode)
 - [x] Intel iHD VAAPI (`LIBVA_DRIVER_NAME=iHD`)
 - [x] VISUAL_QA matrix: `patches/_analysis/VISUAL_QA.md`
+- [x] **Auto backend:** `scripts/vlc-ng-auto` (+ thin `scripts/cvlc`) picks best `-V` / `--avcodec-hw`
 
 ## Edge cases / known limits (open)
 
@@ -70,10 +71,40 @@ Branch: `feature/hwaccel-patches` · install: `/tmp/vlc-ng-install` or ASan `/mn
 - [ ] Safer shutdown-log quieting (replace 10/12)
 - [ ] Drop unused `libm` on xmux-wm if still reported by `ldd -u` (Xmux repo)
 
+## Auto backend (`scripts/vlc-ng-auto`)
+
+Cheap probes (no root): `glxinfo -B`, `/dev/dri/by-path`, `vdpauinfo` / libvdpau_nvidia,
+`vainfo` (+ `LIBVA_DRIVER_NAME=iHD` on Intel render node), Xmux/Xvfb process check.
+
+| Environment | Display (`-V`) | Decode (`--avcodec-hw`) |
+|-------------|----------------|-------------------------|
+| Host NVIDIA (real X) | **gl** (pure `vdpau` OK on host, not default) | **vdpau** if available |
+| Xmux/Xvfb + NVIDIA PRIME | **gl only** (never pure `-V vdpau` — black under Xvfb) | **vdpau** if available |
+| Intel only + iHD | gl | **vaapi** (`LIBVA_DRIVER_NAME=iHD`) |
+| AMD | gl | vaapi or any |
+| Software only | gl or xcb | none |
+
+```bash
+# Recommended day-to-day (auto)
+scripts/vlc-ng-auto /tmp/vlc-ng/samples/test-420.mp4
+scripts/vlc-ng-auto --dry-run --explain file.mp4   # print choice only
+scripts/cvlc file.mp4                              # wrapper; VLC_NG_AUTO=1 default
+VLC_NG_AUTO=0 scripts/cvlc -V gl file.mp4          # passthrough, no detect
+
+# Explicit -V / --avcodec-hw always wins (not overridden)
+scripts/vlc-ng-auto -V vdpau file.mp4
+
+# PREFIX
+VLC_NG_PREFIX=/tmp/vlc-ng-install scripts/vlc-ng-auto file.mp4
+```
+
 ## Recommended commands
 
 ```bash
-# NVIDIA day-to-day (Xmux OK)
+# Auto (preferred)
+scripts/vlc-ng-auto file-420.mp4
+
+# NVIDIA day-to-day (Xmux OK) — same as auto on this machine
 cvlc -V gl --avcodec-hw vdpau file-420.mp4
 
 # Pure VDPAU (host picture)
@@ -85,6 +116,7 @@ cvlc -V vdpau /tmp/vlc-ng/samples/duke3d-444.mp4
 
 # Intel VAAPI
 LIBVA_DRIVER_NAME=iHD cvlc -V gl --avcodec-hw vaapi file-420.mp4
+# or: scripts/vaapi-intel-play.sh file-420.mp4
 ```
 
 ## Profile helper

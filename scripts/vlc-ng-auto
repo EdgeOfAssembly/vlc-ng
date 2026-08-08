@@ -1,0 +1,530 @@
+#!/usr/bin/env bash
+# vlc-ng-auto — pick best -V / --avcodec-hw for this machine and exec cvlc/vlc.
+#
+# Policy (cheap probes, no root):
+#   Host NVIDIA (real X)     → -V gl  --avcodec-hw vdpau   (pure -V vdpau OK but less preferred)
+#   Xmux/Xvfb + NVIDIA       → -V gl  --avcodec-hw vdpau   (never pure -V vdpau — black under Xvfb)
+#   Intel only + iHD         → -V gl  --avcodec-hw vaapi   (+ LIBVA_DRIVER_NAME=iHD)
+#   AMD                      → -V gl  --avcodec-hw vaapi
+#   Software only            → -V gl  (or xcb)  --avcodec-hw none
+#
+# Explicit -V / --vout on the command line always wins (not overridden).
+# Explicit --avcodec-hw also wins.
+#
+# Env:
+#   VLC_NG_PREFIX   install prefix (default /tmp/vlc-ng-install)
+#   VLC_NG_BIN      binary name under prefix/bin (default: cvlc)
+#   VLC_NG_AUTO=0   (used by scripts/cvlc wrapper to skip auto)
+#
+# Usage:
+#   vlc-ng-auto [cvlc-args...] media
+#   vlc-ng-auto --dry-run --explain media.mp4
+#   vlc-ng-auto -h | -v
+set -euo pipefail
+
+VERSION="0.1.0"
+PREFIX="${VLC_NG_PREFIX:-/tmp/vlc-ng-install}"
+BIN_NAME="${VLC_NG_BIN:-cvlc}"
+
+DRY_RUN=0
+EXPLAIN=0
+USER_ARGS=()
+
+usage() {
+  cat <<'EOF'
+Usage: vlc-ng-auto [options] [cvlc-args...] media
+
+Auto-detect best video output (-V) and HW decode (--avcodec-hw) for this
+machine, then exec PREFIX/bin/cvlc (or VLC_NG_BIN) with those flags.
+
+Options (vlc-ng-auto only; parsed before media args):
+  -h, --help       Show this help and exit
+  -v, --version    Show version and exit
+  --dry-run        Print the final command to stdout; do not exec
+  --explain        Verbose detection notes on stderr
+
+Environment:
+  VLC_NG_PREFIX    Install prefix (default: /tmp/vlc-ng-install)
+  VLC_NG_BIN       Binary under PREFIX/bin (default: cvlc)
+  DISPLAY          X11 display used for GLX / virtual-X probes
+
+Policy summary:
+  Host NVIDIA (real X)   -V gl  --avcodec-hw vdpau
+  Xmux/Xvfb + NVIDIA     -V gl  --avcodec-hw vdpau   (never pure -V vdpau)
+  Intel + iHD            -V gl  --avcodec-hw vaapi   (LIBVA_DRIVER_NAME=iHD)
+  AMD                    -V gl  --avcodec-hw vaapi
+  Software only          -V gl  --avcodec-hw none
+
+If the user already passes -V / --vout, that choice is kept.
+If the user already passes --avcodec-hw, that choice is kept.
+
+Examples:
+  vlc-ng-auto /tmp/vlc-ng/samples/test-420.mp4
+  vlc-ng-auto --dry-run --explain file.mp4
+  vlc-ng-auto -V vdpau file.mp4          # user -V wins
+  VLC_NG_PREFIX=/mnt/tmp/vlc-ng-asan vlc-ng-auto file.mp4
+EOF
+}
+
+log()  { printf 'vlc-ng-auto: %s\n' "$*" >&2; }
+note() { if [[ "$EXPLAIN" -eq 1 ]]; then printf 'vlc-ng-auto:   %s\n' "$*" >&2; fi; }
+
+# --- parse our flags; remaining go to cvlc ---------------------------------
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -v|--version)
+      printf 'vlc-ng-auto %s\n' "$VERSION"
+      exit 0
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      shift
+      ;;
+    --explain)
+      EXPLAIN=1
+      shift
+      ;;
+    --)
+      shift
+      USER_ARGS+=("$@")
+      break
+      ;;
+    *)
+      USER_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if [[ ${#USER_ARGS[@]} -eq 0 && "$DRY_RUN" -eq 0 ]]; then
+  usage >&2
+  exit 2
+fi
+
+# --- helpers: user already chose? ------------------------------------------
+user_has_vout=0
+user_has_hw=0
+for ((i = 0; i < ${#USER_ARGS[@]}; i++)); do
+  a="${USER_ARGS[$i]}"
+  case "$a" in
+    -V|--vout|-V=*|--vout=*)
+      user_has_vout=1
+      ;;
+    --avcodec-hw|--avcodec-hw=*)
+      user_has_hw=1
+      ;;
+  esac
+  # -V value as next arg
+  if [[ "$a" == "-V" || "$a" == "--vout" ]]; then
+    user_has_vout=1
+  fi
+  if [[ "$a" == "--avcodec-hw" ]]; then
+    user_has_hw=1
+  fi
+done
+
+# --- cheap probes ----------------------------------------------------------
+DISPLAY_VAL="${DISPLAY:-}"
+GLX_VENDOR=""
+GLX_RENDERER=""
+HAS_NVIDIA=0
+HAS_INTEL=0
+HAS_AMD=0
+HAS_VDPAU=0
+HAS_VAAPI_INTEL=0
+HAS_VAAPI_ANY=0
+IS_VIRTUAL_X=0   # Xmux server / Xvfb / llvmpipe-only presentation
+IS_XMUX=0
+INTEL_RENDER=""
+AMD_RENDER=""
+NVIDIA_RENDER=""
+ENV_KIND="unknown"
+CHOICE_VOUT="gl"
+CHOICE_HW="none"
+EXTRA_ENV=()
+
+display_num() {
+  # ":0" → 0, ":10.0" → 10, empty → empty
+  local d="${1:-}"
+  d="${d#*:}"
+  d="${d%%.*}"
+  printf '%s' "$d"
+}
+
+probe_glx() {
+  if [[ -z "${DISPLAY_VAL}" ]]; then
+    note "DISPLAY unset — skip glxinfo"
+    return 0
+  fi
+  if ! command -v glxinfo >/dev/null 2>&1; then
+    note "glxinfo not installed — skip GLX probe"
+    return 0
+  fi
+  local out
+  out="$(timeout 3 glxinfo -B 2>/dev/null || true)"
+  if [[ -z "$out" ]]; then
+    note "glxinfo failed on DISPLAY=${DISPLAY_VAL}"
+    return 0
+  fi
+  GLX_VENDOR="$(printf '%s\n' "$out" | sed -n 's/^OpenGL vendor string: //p' | head -1)"
+  GLX_RENDERER="$(printf '%s\n' "$out" | sed -n 's/^OpenGL renderer string: //p' | head -1)"
+  note "GLX vendor=${GLX_VENDOR:-?} renderer=${GLX_RENDERER:-?}"
+  # Note: bash case patterns must not contain unquoted spaces (bash 5.x parse error).
+  local r_lc v_lc
+  r_lc="${GLX_RENDERER,,}"
+  v_lc="${GLX_VENDOR,,}"
+  case "$r_lc" in
+    *nvidia*|*geforce*|*quadro*|*rtx*|*gtx*)
+      HAS_NVIDIA=1
+      ;;
+    *llvmpipe*|*softpipe*|*swrast*)
+      # software GL presentation (typical Xvfb / mesa-only Xmux)
+      :
+      ;;
+    *amd*|*radeon*|*navi*|*polaris*)
+      HAS_AMD=1
+      ;;
+    *intel*|*uhd*|*iris*)
+      HAS_INTEL=1
+      ;;
+  esac
+  case "$v_lc" in
+    *nvidia*) HAS_NVIDIA=1 ;;
+    *amd*|*ati*) HAS_AMD=1 ;;
+    *intel*) HAS_INTEL=1 ;;
+  esac
+}
+
+probe_dri() {
+  local p
+  if [[ -d /dev/dri/by-path ]]; then
+    for p in /dev/dri/by-path/*-render; do
+      [[ -e "$p" ]] || continue
+      local base link
+      base="$(basename "$p")"
+      link="$(readlink -f "$p" 2>/dev/null || true)"
+      note "DRI path $base → ${link:-?}"
+      # Heuristic: Intel iGPU is almost always 00:02.0 on this class of laptops;
+      # also match vendor via sysfs if available.
+      local pci="${base#pci-}"
+      pci="${pci%-render}"
+      pci="${pci%-card}"
+      local vendor=""
+      if [[ -r "/sys/bus/pci/devices/${pci}/vendor" ]]; then
+        vendor="$(cat "/sys/bus/pci/devices/${pci}/vendor" 2>/dev/null || true)"
+      fi
+      case "$vendor" in
+        0x8086)
+          HAS_INTEL=1
+          INTEL_RENDER="${link:-$p}"
+          ;;
+        0x10de)
+          HAS_NVIDIA=1
+          NVIDIA_RENDER="${link:-$p}"
+          ;;
+        0x1002)
+          HAS_AMD=1
+          AMD_RENDER="${link:-$p}"
+          ;;
+        *)
+          # Fallback name heuristics
+          if [[ "$base" == *00:02.0* ]]; then
+            HAS_INTEL=1
+            INTEL_RENDER="${link:-$p}"
+          fi
+          ;;
+      esac
+    done
+  fi
+  # lspci fallback (no root needed for listing)
+  if command -v lspci >/dev/null 2>&1; then
+    local pci_out
+    pci_out="$(lspci 2>/dev/null | grep -iE 'VGA|3D|Display' || true)"
+    # Word-ish matches: bare "ATI" would hit "CorporATI on" — use longer tokens.
+    if printf '%s\n' "$pci_out" | grep -qi 'NVIDIA'; then HAS_NVIDIA=1; fi
+    if printf '%s\n' "$pci_out" | grep -qi 'Intel'; then HAS_INTEL=1; fi
+    if printf '%s\n' "$pci_out" | grep -qiE 'AMD |\[AMD|ATI Technologies|Advanced Micro Devices|Radeon'; then
+      HAS_AMD=1
+    fi
+    note "lspci GPUs: $(printf '%s' "$pci_out" | tr '\n' ';' | sed 's/;$//')"
+  fi
+  # Default Intel render node if still empty
+  if [[ "$HAS_INTEL" -eq 1 && -z "$INTEL_RENDER" ]]; then
+    if [[ -e /dev/dri/by-path/pci-0000:00:02.0-render ]]; then
+      INTEL_RENDER="$(readlink -f /dev/dri/by-path/pci-0000:00:02.0-render)"
+    elif [[ -e /dev/dri/renderD128 ]]; then
+      INTEL_RENDER="/dev/dri/renderD128"
+    fi
+  fi
+}
+
+probe_virtual_x() {
+  local dnum
+  dnum="$(display_num "$DISPLAY_VAL")"
+
+  # Explicit xmux session env
+  if [[ -n "${XMUX_SESSION:-}" || -n "${XMUX_DISPLAY:-}" ]]; then
+    IS_XMUX=1
+    IS_VIRTUAL_X=1
+    note "XMUX_* env set → virtual/xmux session"
+  fi
+
+  # Process list: xmux-server or Xvfb owning this display number
+  if [[ -n "$dnum" ]]; then
+    if pgrep -a xmux-server 2>/dev/null | grep -Eq "[: ]:${dnum}( |$)"; then
+      IS_XMUX=1
+      IS_VIRTUAL_X=1
+      note "xmux-server running for DISPLAY=:${dnum}"
+    fi
+    if pgrep -a Xvfb 2>/dev/null | grep -Eq "[: ]:${dnum}( |$)"; then
+      IS_VIRTUAL_X=1
+      note "Xvfb running for DISPLAY=:${dnum}"
+    fi
+    # Real host X (xinit / Xorg / X) on this display → not virtual
+    if pgrep -af '(^|/)(Xorg|X)( |$)' 2>/dev/null | grep -Eq "[: ]:${dnum}( |$)"; then
+      # Host X present; only mark virtual if also xmux-server (attach-to host is OK for vdpau)
+      if [[ "$IS_XMUX" -eq 0 ]]; then
+        note "host X server on :${dnum}"
+      fi
+    fi
+  fi
+
+  # llvmpipe presentation while NVIDIA exists → treat as virtual for vout policy
+  local r_lc="${GLX_RENDERER,,}"
+  case "$r_lc" in
+    *llvmpipe*|*softpipe*|*swrast*)
+      if [[ "$HAS_NVIDIA" -eq 1 || -n "${__NV_PRIME_RENDER_OFFLOAD:-}" ]]; then
+        IS_VIRTUAL_X=1
+        note "llvmpipe GLX + NVIDIA/PRIME → virtual presentation (no pure -V vdpau)"
+      fi
+      ;;
+  esac
+
+  # PRIME offload alone does NOT imply virtual (host :0 often has it set)
+  if [[ -n "${__NV_PRIME_RENDER_OFFLOAD:-}" ]]; then
+    note "__NV_PRIME_RENDER_OFFLOAD=${__NV_PRIME_RENDER_OFFLOAD}"
+  fi
+}
+
+probe_vdpau() {
+  # Prefer vdpauinfo when present
+  if command -v vdpauinfo >/dev/null 2>&1; then
+    if timeout 3 vdpauinfo >/dev/null 2>&1; then
+      HAS_VDPAU=1
+      note "vdpauinfo OK → VDPAU available"
+      return 0
+    fi
+    note "vdpauinfo failed"
+  else
+    note "vdpauinfo not installed — fallback probe"
+  fi
+  # Fallback: NVIDIA present + libvdpau_nvidia
+  local lib
+  for lib in \
+    /usr/lib64/vdpau/libvdpau_nvidia.so.1 \
+    /usr/lib/vdpau/libvdpau_nvidia.so.1 \
+    /usr/lib64/libvdpau.so.1 \
+    /usr/lib/libvdpau.so.1
+  do
+    if [[ -e "$lib" && "$HAS_NVIDIA" -eq 1 ]]; then
+      if command -v nvidia-smi >/dev/null 2>&1 && timeout 3 nvidia-smi -L >/dev/null 2>&1; then
+        HAS_VDPAU=1
+        note "VDPAU inferred: $lib + nvidia-smi"
+        return 0
+      fi
+    fi
+  done
+  if [[ -e /usr/lib64/vdpau/libvdpau_nvidia.so.1 || -e /usr/lib/vdpau/libvdpau_nvidia.so.1 ]]; then
+    if [[ "$HAS_NVIDIA" -eq 1 ]]; then
+      HAS_VDPAU=1
+      note "VDPAU inferred: libvdpau_nvidia + NVIDIA GPU"
+      return 0
+    fi
+  fi
+  note "VDPAU not available"
+}
+
+probe_vaapi() {
+  if ! command -v vainfo >/dev/null 2>&1; then
+    note "vainfo not installed — skip VAAPI probe"
+    return 0
+  fi
+  # Intel iHD on dedicated render node (avoids NVIDIA default DRM)
+  if [[ "$HAS_INTEL" -eq 1 && -n "$INTEL_RENDER" ]]; then
+    if timeout 3 env LIBVA_DRIVER_NAME=iHD vainfo --display drm --device "$INTEL_RENDER" >/dev/null 2>&1; then
+      HAS_VAAPI_INTEL=1
+      HAS_VAAPI_ANY=1
+      note "vainfo iHD OK on $INTEL_RENDER"
+    else
+      note "vainfo iHD failed on $INTEL_RENDER"
+    fi
+  fi
+  # Generic vainfo (may be nvidia-vaapi — we still note it, but policy prefers VDPAU for NVIDIA)
+  if timeout 3 vainfo >/dev/null 2>&1; then
+    HAS_VAAPI_ANY=1
+    note "vainfo (default) OK"
+  fi
+}
+
+choose_backend() {
+  # Decision table
+  if [[ "$HAS_NVIDIA" -eq 1 && "$HAS_VDPAU" -eq 1 ]]; then
+    if [[ "$IS_VIRTUAL_X" -eq 1 || "$IS_XMUX" -eq 1 ]]; then
+      ENV_KIND="xmux/xvfb+nvidia"
+      CHOICE_VOUT="gl"
+      CHOICE_HW="vdpau"
+    else
+      ENV_KIND="host-nvidia"
+      # Prefer gl for reliability; pure vdpau OK on host but not default
+      CHOICE_VOUT="gl"
+      CHOICE_HW="vdpau"
+    fi
+    return 0
+  fi
+
+  if [[ "$HAS_NVIDIA" -eq 1 && "$HAS_VDPAU" -eq 0 ]]; then
+    ENV_KIND="nvidia-no-vdpau"
+    CHOICE_VOUT="gl"
+    if [[ "$HAS_VAAPI_ANY" -eq 1 ]]; then
+      CHOICE_HW="vaapi"
+    else
+      CHOICE_HW="none"
+    fi
+    return 0
+  fi
+
+  # Intel-only (or Intel preferred when no NVIDIA)
+  if [[ "$HAS_INTEL" -eq 1 && "$HAS_NVIDIA" -eq 0 ]]; then
+    ENV_KIND="intel"
+    CHOICE_VOUT="gl"
+    if [[ "$HAS_VAAPI_INTEL" -eq 1 || "$HAS_VAAPI_ANY" -eq 1 ]]; then
+      CHOICE_HW="vaapi"
+      EXTRA_ENV+=("LIBVA_DRIVER_NAME=iHD")
+      if [[ -n "$INTEL_RENDER" ]]; then
+        EXTRA_ENV+=("LIBVA_DRM_DEVICE=${INTEL_RENDER}")
+      fi
+    else
+      CHOICE_HW="none"
+    fi
+    return 0
+  fi
+
+  # Hybrid Intel+NVIDIA without working VDPAU → Intel VAAPI fallback
+  if [[ "$HAS_INTEL" -eq 1 && "$HAS_VAAPI_INTEL" -eq 1 ]]; then
+    ENV_KIND="intel-vaapi-fallback"
+    CHOICE_VOUT="gl"
+    CHOICE_HW="vaapi"
+    EXTRA_ENV+=("LIBVA_DRIVER_NAME=iHD")
+    if [[ -n "$INTEL_RENDER" ]]; then
+      EXTRA_ENV+=("LIBVA_DRM_DEVICE=${INTEL_RENDER}")
+    fi
+    return 0
+  fi
+
+  if [[ "$HAS_AMD" -eq 1 ]]; then
+    ENV_KIND="amd"
+    CHOICE_VOUT="gl"
+    if [[ "$HAS_VAAPI_ANY" -eq 1 ]]; then
+      CHOICE_HW="vaapi"
+    else
+      CHOICE_HW="any"
+    fi
+    return 0
+  fi
+
+  ENV_KIND="software"
+  # Prefer gl; fall back conceptually to xcb if no GL (we still pass gl — VLC will cascade)
+  if [[ -z "$GLX_RENDERER" && -z "$DISPLAY_VAL" ]]; then
+    CHOICE_VOUT="xcb"
+  else
+    CHOICE_VOUT="gl"
+  fi
+  CHOICE_HW="none"
+}
+
+# --- run probes ------------------------------------------------------------
+note "PREFIX=${PREFIX} BIN=${BIN_NAME} DISPLAY=${DISPLAY_VAL:-<unset>}"
+probe_dri
+probe_glx
+probe_virtual_x
+probe_vdpau
+probe_vaapi
+choose_backend
+
+# --- build argv ------------------------------------------------------------
+VLC_BIN="${PREFIX}/bin/${BIN_NAME}"
+if [[ ! -x "$VLC_BIN" ]]; then
+  # Fallback: sibling vlc if cvlc missing
+  if [[ -x "${PREFIX}/bin/vlc" ]]; then
+    VLC_BIN="${PREFIX}/bin/vlc"
+    note "fallback binary: $VLC_BIN"
+  else
+    log "error: no executable at ${PREFIX}/bin/${BIN_NAME} (set VLC_NG_PREFIX)"
+    exit 127
+  fi
+fi
+
+export LD_LIBRARY_PATH="${PREFIX}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export VLC_PLUGIN_PATH="${PREFIX}/lib/vlc/plugins"
+
+# Apply EXTRA_ENV (Intel iHD etc.)
+for kv in "${EXTRA_ENV[@]+"${EXTRA_ENV[@]}"}"; do
+  export "$kv"
+  note "export $kv"
+done
+
+CMD=("$VLC_BIN")
+
+if [[ "$user_has_vout" -eq 1 ]]; then
+  note "user supplied -V/--vout — not overriding vout"
+else
+  CMD+=("-V" "$CHOICE_VOUT")
+fi
+
+if [[ "$user_has_hw" -eq 1 ]]; then
+  note "user supplied --avcodec-hw — not overriding hw"
+else
+  if [[ "$CHOICE_HW" != "any" ]]; then
+    CMD+=("--avcodec-hw" "$CHOICE_HW")
+  fi
+fi
+
+CMD+=("${USER_ARGS[@]+"${USER_ARGS[@]}"}")
+
+# Human-readable choice line (always on stderr)
+{
+  printf 'vlc-ng-auto: env=%s nvidia=%s intel=%s amd=%s vdpau=%s vaapi_intel=%s virtual_x=%s\n' \
+    "$ENV_KIND" "$HAS_NVIDIA" "$HAS_INTEL" "$HAS_AMD" "$HAS_VDPAU" "$HAS_VAAPI_INTEL" "$IS_VIRTUAL_X"
+  if [[ "$user_has_vout" -eq 1 ]]; then
+    printf 'vlc-ng-auto: vout=USER'
+  else
+    printf 'vlc-ng-auto: vout=%s' "$CHOICE_VOUT"
+  fi
+  if [[ "$user_has_hw" -eq 1 ]]; then
+    printf ' hw=USER'
+  else
+    printf ' hw=%s' "$CHOICE_HW"
+  fi
+  printf '\n'
+  printf 'vlc-ng-auto: exec'
+  for a in "${CMD[@]}"; do
+    printf ' %q' "$a"
+  done
+  printf '\n'
+} >&2
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  # Machine-readable command on stdout (one line, shell-quotable)
+  printf '%q' "${CMD[0]}"
+  for ((i = 1; i < ${#CMD[@]}; i++)); do
+    printf ' %q' "${CMD[$i]}"
+  done
+  printf '\n'
+  exit 0
+fi
+
+exec "${CMD[@]}"
