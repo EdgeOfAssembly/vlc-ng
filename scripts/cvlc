@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Thin cvlc wrapper for VLC-ng: auto-selects best -V / --avcodec-hw by default.
+#
+#   VLC_NG_AUTO=1  (default for this wrapper) → scripts/vlc-ng-auto
+#   VLC_NG_AUTO=0  → plain PREFIX/bin/cvlc (no detection)
+#
+# Env:
+#   VLC_NG_PREFIX  install prefix (default /tmp/vlc-ng-install)
+#   VLC_NG_AUTO    1=auto (default), 0=passthrough
+set -euo pipefail
+
+PREFIX="${VLC_NG_PREFIX:-/tmp/vlc-ng-install}"
+AUTO="${VLC_NG_AUTO:-1}"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ "$AUTO" == "1" || "$AUTO" == "yes" || "$AUTO" == "true" ]]; then
+  if [[ -x "${HERE}/vlc-ng-auto" ]]; then
+    export VLC_NG_BIN="${VLC_NG_BIN:-cvlc}"
+    exec "${HERE}/vlc-ng-auto" "$@"
+  fi
+fi
+
+export LD_LIBRARY_PATH="${PREFIX}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export VLC_PLUGIN_PATH="${PREFIX}/lib/vlc/plugins"
+exec "${PREFIX}/bin/cvlc" "$@"
