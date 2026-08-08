@@ -29,6 +29,9 @@ nvlc
 vlc-static
 vlc-wrapper
 vlc-cache-gen
+# Keep repo helper wrappers under scripts/ (build-tree names still ignored at root)
+!scripts/cvlc
+!scripts/vlc
 src/fourcc_gen
 src/fourcc_tables.h
 src/revision.c
